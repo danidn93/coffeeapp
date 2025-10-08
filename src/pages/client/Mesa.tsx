@@ -1,5 +1,5 @@
 // src/pages/ClientMesa.tsx
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,16 +64,14 @@ const ClientMesa = () => {
   // Buscador productos
   const [qProductos, setQProductos] = useState('');
 
-  const [isOpen, setIsOpen] = useState<boolean | null>(null);
   const navigate = useNavigate();
 
   // === Fondo responsivo (móvil vs desktop) ===
   const [bgUrl, setBgUrl] = useState<string>(adminBg);
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1024px)'); // lg
+    const mq = window.matchMedia('(min-width: 1024px)');
     const apply = () => setBgUrl(mq.matches ? adminBgDesktop : adminBg);
     apply();
-    // Safari < 14 usa addListener/removeListener
     if (mq.addEventListener) {
       mq.addEventListener('change', apply);
       return () => mq.removeEventListener('change', apply);
@@ -88,11 +86,16 @@ const ClientMesa = () => {
   }, []);
 
   useEffect(() => {
-    if (!slug || !token) return;
+    // Si faltan parámetros, redirige con alerta
+    if (!slug || !token) {
+      navigate('/landing?alert=mesa-invalida', { replace: true });
+      return;
+    }
 
     let cancelled = false;
     (async () => {
       try {
+        // 1) ¿Local abierto?
         const { data, error } = await supabase
           .from('configuracion')
           .select('abierto')
@@ -103,23 +106,29 @@ const ClientMesa = () => {
         if (cancelled) return;
 
         const abierto = error ? true : (data?.abierto ?? true);
-        setIsOpen(abierto);
-
         if (!abierto) {
-          navigate('/landing', { replace: true });
+          navigate('/landing?alert=local-cerrado', { replace: true });
           return;
         }
 
-        await validateMesaAndToken();
+        // 2) ¿Mesa válida/activa con token correcto?
+        const ok = await validateMesaAndToken();
+        if (!ok) {
+          navigate('/landing?alert=sala-inactiva', { replace: true });
+          return;
+        }
+
+        // 3) Items
         await fetchItems();
       } catch {
-        await validateMesaAndToken();
-        await fetchItems();
+        // En caso de error silencioso, manda a landing con error genérico
+        navigate('/landing?alert=sala-inactiva', { replace: true });
       }
     })();
 
     return () => { cancelled = true; };
-  }, [slug, token, navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, token]);
 
   const validateMesaAndToken = async () => {
     try {
@@ -129,25 +138,15 @@ const ClientMesa = () => {
         .eq('slug', slug)
         .eq('token', token)
         .eq('activa', true)
-        .single();
+        .maybeSingle();
 
       if (error || !data) {
-        toast({
-          title: 'Sala no encontrada',
-          description: 'La sala no existe o el enlace es inválido',
-          variant: 'destructive',
-        });
-        return;
+        return false; // fuerza redirección
       }
-
       setMesa(data as Mesa);
-    } catch (error) {
-      console.error('Error validating mesa:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudo validar la mesa',
-        variant: 'destructive',
-      });
+      return true;
+    } catch {
+      return false;
     }
   };
 
@@ -162,12 +161,7 @@ const ClientMesa = () => {
       if (error) throw error;
       setItems((data as Item[]) || []);
     } catch (error) {
-      console.error('Error fetching items:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudieron cargar los items',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'No se pudieron cargar los items', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -257,7 +251,6 @@ const ClientMesa = () => {
       setCart([]);
       toast({ title: 'Pedido realizado', description: `Se creó el pedido (${tipo})` });
     } catch (error: any) {
-      console.error('Error creating order:', error);
       toast({
         title: 'Error',
         description: `No se pudo crear el pedido: ${error?.message || 'Error desconocido'}`,
@@ -339,13 +332,11 @@ const ClientMesa = () => {
           <div className="font-semibold text-[15px] leading-snug line-clamp-1">
             {item.nombre}
           </div>
-
           {(item.description || item.categoria) && (
             <div className="text-[12px] text-muted-foreground line-clamp-2">
               {item.description || item.categoria}
             </div>
           )}
-
           <div className="mt-2 sm:hidden">
             <QtyPill qty={qty} onAdd={onAdd} onRemove={onRemove} />
           </div>
@@ -354,19 +345,13 @@ const ClientMesa = () => {
         <div className="relative w-[192px] shrink-0">
           <div className="rounded-xl overflow-hidden bg-black/5 aspect-[16/9]">
             {item.image_url ? (
-              <img
-                src={item.image_url}
-                alt={item.nombre}
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
+              <img src={item.image_url} alt={item.nombre} className="h-full w-full object-cover" loading="lazy" />
             ) : (
               <div className="h-full w-full grid place-items-center text-muted-foreground">
                 <Package className="h-6 w-6 opacity-60" />
               </div>
             )}
           </div>
-
           <div className="hidden sm:block absolute -bottom-3 right-2">
             <QtyPill qty={qty} onAdd={onAdd} onRemove={onRemove} />
           </div>
@@ -387,12 +372,13 @@ const ClientMesa = () => {
   }
 
   if (!mesa) {
+    // si llegas aquí es porque hubo navegación temprana; mostramos un fallback simple
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Sala no encontrada</CardTitle>
-            <CardDescription>La sala no existe o el enlace es inválido</CardDescription>
+            <CardTitle>Sala no disponible</CardTitle>
+            <CardDescription>Serás redirigido…</CardDescription>
           </CardHeader>
         </Card>
       </div>
