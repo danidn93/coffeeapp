@@ -8,6 +8,7 @@ import { ShoppingCart, Package } from 'lucide-react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea'; // Asegúrate de tener este componente (o usa <textarea> nativo)
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -56,9 +57,10 @@ const ClientMesa = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCreating, setIsCreating] = useState(false);
 
-  // Modal de nombre (reemplaza PIN)
+  // Modal: nombre + notas del pedido
   const [showNameModal, setShowNameModal] = useState(false);
   const [customerName, setCustomerName] = useState('');
+  const [orderNotes, setOrderNotes] = useState(''); // 👈 notas generales del pedido
   const [pendingCreate, setPendingCreate] = useState(false);
 
   // Buscador productos
@@ -158,7 +160,7 @@ const ClientMesa = () => {
         .eq('disponible', true)
         .order('tipo', { ascending: true });
 
-      if (error) throw error;
+    if (error) throw error;
       setItems((data as Item[]) || []);
     } catch (error) {
       toast({ title: 'Error', description: 'No se pudieron cargar los items', variant: 'destructive' });
@@ -197,6 +199,7 @@ const ClientMesa = () => {
     if (!mesa || cart.length === 0 || isCreating) return;
     setPendingCreate(true);
     setCustomerName('');
+    setOrderNotes(''); // limpia notas anteriores
     setShowNameModal(true);
   };
 
@@ -210,10 +213,10 @@ const ClientMesa = () => {
 
     setShowNameModal(false);
     setPendingCreate(false);
-    await createOrder(name);
+    await createOrder(name, orderNotes);
   };
 
-  const createOrder = async (name_user: string) => {
+  const createOrder = async (name_user: string, notas: string) => {
     if (!mesa || cart.length === 0 || isCreating) return;
 
     setIsCreating(true);
@@ -223,12 +226,14 @@ const ClientMesa = () => {
 
       const tipo = mapTipoPedido(productItems.length > 0, songItems.length > 0);
 
+      // INSERT en pedidos con notas generales
       const { data: pedido, error: pedidoError } = await supabase
         .from('pedidos')
         .insert({
           mesa_id: mesa.id,
           tipo,
           name_user,
+          notas: notas?.trim() ? notas.trim() : null, // 👈 guarda en columna `notas`
         })
         .select()
         .single();
@@ -249,6 +254,7 @@ const ClientMesa = () => {
       }
 
       setCart([]);
+      setOrderNotes('');
       toast({ title: 'Pedido realizado', description: `Se creó el pedido (${tipo})` });
     } catch (error: any) {
       toast({
@@ -469,22 +475,38 @@ const ClientMesa = () => {
         </div>
       </main>
 
-      {/* Modal de Nombre */}
+      {/* Modal: nombre + notas */}
       <Dialog open={showNameModal} onOpenChange={(o) => setShowNameModal(o)}>
-        <DialogContent className="sm:max-w-[380px]">
+        <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
-            <DialogTitle>Indíqueme su nombre para el pedido</DialogTitle>
+            <DialogTitle>Tu nombre y notas del pedido</DialogTitle>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="customer_name">Nombre</Label>
-            <Input
-              id="customer_name"
-              autoFocus
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Valeria"
-            />
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="customer_name">Nombre</Label>
+              <Input
+                id="customer_name"
+                autoFocus
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Valeria"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="order_notes">Notas (opcional)</Label>
+              {/* Usa tu Textarea de shadcn/ui o reemplaza por <textarea className="..." /> */}
+              <Textarea
+                id="order_notes"
+                value={orderNotes}
+                onChange={(e) => setOrderNotes(e.target.value)}
+                placeholder="Ej.: sin azúcar, con hielo, poco picante…"
+                rows={3}
+              />
+            </div>
           </div>
+
           <DialogFooter>
             <Button
               variant="outline"
