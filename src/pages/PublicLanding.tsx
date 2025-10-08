@@ -53,7 +53,7 @@ const Index = () => {
       const next = new URLSearchParams(location.search);
       next.delete("alert");
       navigate({ pathname: location.pathname, search: next.toString() }, { replace: true });
-    }, 2000);
+    }, 3000);
     return () => clearTimeout(t);
   }, [alertKey, location.pathname, location.search, navigate]);
 
