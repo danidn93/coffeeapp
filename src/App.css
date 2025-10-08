@@ -1,0 +1,85 @@
+/* ===== app.css (UNEMI) ===== */
+
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+/* Para el panel admin a pantalla completa sin padding duro */
+.admin-full #root {
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: initial !important;
+}
+
+/* Logo demo (puedes dejarlo o quitarlo) */
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em rgba(100, 108, 255, 0.67));
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em rgba(97, 218, 251, 0.67));
+}
+
+@keyframes logo-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+/* ==== Ayudas para el Admin (usadas por el layout) ==== */
+
+/* Fondo con imagen; usa junto a <div class="admin-bg" style="background-image:url(...)" /> */
+.admin-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.admin-header {
+  /* color real proviene del tema .unemi en index.css */
+  backdrop-filter: saturate(140%) blur(10px);
+  -webkit-backdrop-filter: saturate(140%) blur(10px);
+  border-bottom: 1px solid hsl(0 0% 100% / 0.12);
+}
+
+/* Anillo naranja del logo */
+.admin-logo {
+  border-radius: 0.5rem;
+  box-shadow: 0 0 0 2px hsl(24 100% 50% / 0.6);
+}
+
+/* Botón naranja acento */
+.btn-accent {
+  background-color: hsl(24 100% 50%);
+  color: #fff;
+  border: 0;
+  transition: filter .2s ease, transform .08s ease;
+}
+.btn-accent:hover { filter: brightness(0.96); }
+.btn-accent:active { transform: translateY(1px); }
