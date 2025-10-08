@@ -133,8 +133,8 @@ const ClientMesa = () => {
 
       if (error || !data) {
         toast({
-          title: 'Mesa no encontrada',
-          description: 'La mesa no existe o el enlace es inválido',
+          title: 'Sala no encontrada',
+          description: 'La sala no existe o el enlace es inválido',
           variant: 'destructive',
         });
         return;
@@ -391,8 +391,8 @@ const ClientMesa = () => {
       <div className="min-h-screen flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Mesa no encontrada</CardTitle>
-            <CardDescription>La mesa no existe o el enlace es inválido</CardDescription>
+            <CardTitle>Sala no encontrada</CardTitle>
+            <CardDescription>La sala no existe o el enlace es inválido</CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -417,7 +417,7 @@ const ClientMesa = () => {
             <img src={logo} alt="Logo" className="h-9 w-9 rounded object-contain" />
             <div>
               <h1 className="text-base md:text-lg font-semibold leading-tight">
-                Mesa <span className="font-bold">{mesa.nombre}</span>
+                <span className="font-bold">{mesa.nombre}</span>
               </h1>
               <p className="text-xs text-muted-foreground -mt-0.5">Realiza tu pedido</p>
             </div>
