@@ -136,8 +136,7 @@ const AdminPedidos = () => {
 
   const getNextEstado = (e: EstadoPedido): EstadoPedido | undefined => {
     switch (e) {
-      case 'pendiente':   return 'preparando';
-      case 'preparando':  return 'listo';
+      case 'pendiente':   return 'listo';
       default:            return undefined;
     }
   };
