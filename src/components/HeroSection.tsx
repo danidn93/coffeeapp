@@ -30,7 +30,7 @@ const HeroSection = () => {
   const nombre = (conf?.nombre_local || "COFFE APP").toUpperCase();
   const dir = conf?.direccion || "Av. Principal 123, Centro Histórico";
   const tel = conf?.telefono || "+1 (555) 123-4567";
-  const bg  = conf?.hero_bg_url || "/assets/hero-bar.jpg";
+  const bg  = conf?.hero_bg_url || "/assets/hero-bar.png";
   const lines: string[] =
     conf?.horario_arr?.length
       ? conf.horario_arr!

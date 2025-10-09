@@ -8,7 +8,7 @@ import { History } from 'lucide-react'; // ⬅️ nuevo
 
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Table as TableIcon, Music, ShoppingCart, Calendar } from 'lucide-react';
+import { Shield, Coffee, DoorOpen as TableIcon, Music, ShoppingCart, Calendar } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { logout } = useAuth(); // si no lo usas aquí, puedes quitarlo
@@ -132,7 +132,7 @@ export default function AdminDashboard() {
               <Card className="dashboard-card cursor-pointer">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="card-title">Productos</CardTitle>
-                  <Music className="h-4 w-4 opacity-80" />
+                  <Coffee className="h-4 w-4 opacity-80" />
                 </CardHeader>
                 <CardContent className="card-inner">
                   <div className="text-xl font-semibold">

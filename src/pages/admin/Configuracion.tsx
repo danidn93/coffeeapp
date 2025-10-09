@@ -211,17 +211,7 @@ export default function AdminConfiguracion() {
                 <p className="text-white/80">Cargando…</p>
               ) : (
                 <>
-                  {/* Estado */}
-                  <div className="flex items-center gap-3">
-                    <Label className="text-white/90">Estado</Label>
-                    <Switch
-                      className="switch-white"
-                      checked={!!conf.abierto}
-                      onCheckedChange={(v) => setConf((c) => ({ ...c, abierto: v }))}
-                    />
-                    <span className="text-sm">{conf.abierto ? 'Abierto' : 'Cerrado'}</span>
-                  </div>
-
+                  
                   {/* Campos */}
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { MapPin, Clock, Phone, Navigation, Wifi } from "lucide-react";
+import { Microwave, Clock, Table, Table2, Armchair, Navigation, Wifi } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 type Config = {
@@ -84,24 +84,17 @@ const LocationSection = () => {
               <div className="px-1 pt-5 pb-2 text-center">
                 <h3 className="text-xl font-semibold text-[hsl(210_40%_10%)]">{nombre}</h3>
                 <p className="text-sm text-[hsl(215_16%_35%)]">{direccion}</p>
-                <p className="text-xs text-[hsl(215_16%_45%)] mt-1">
-                  Lat {mapLat.toFixed(6)} · Lng {mapLng.toFixed(6)}
-                </p>
+                
               </div>
 
-              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-1 gap-3">
                 <a href={mapHref} target="_blank" rel="noopener noreferrer">
                   <Button className="w-full bg-[#002E45] text-white hover:bg-[#002E45]/90">
                     <Navigation className="w-4 h-4 mr-2" />
                     Ver en mapa
                   </Button>
                 </a>
-                <a href={telHref(telefono)}>
-                  <Button className="w-full bg-[#FF6900] text-white hover:bg-[#FF6900]/90">
-                    <Phone className="w-4 h-4 mr-2" />
-                    Llamar
-                  </Button>
-                </a>
+                
               </div>
             </div>
           </div>
@@ -135,6 +128,18 @@ const LocationSection = () => {
                   <div className="flex items-center gap-3">
                     <Wifi className="w-5 h-5 text-[#002E45]" />
                     <span className="text-sm text-[hsl(210_40%_10%)]">WiFi Gratis</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Table2 className="w-5 h-5 text-[#002E45]" />
+                    <span className="text-sm text-[hsl(210_40%_10%)]">Mesas</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Armchair className="w-5 h-5 text-[#002E45]" />
+                    <span className="text-sm text-[hsl(210_40%_10%)]">Sillas</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Microwave className="w-5 h-5 text-[#002E45]" />
+                    <span className="text-sm text-[hsl(210_40%_10%)]">Microondas</span>
                   </div>
                 </div>
               </CardContent>

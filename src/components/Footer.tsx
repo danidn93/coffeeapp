@@ -42,22 +42,7 @@ const Footer = () => {
                 Café de calidad, atención cercana y un ambiente que invita a conversar, crear y compartir.
               </p>
 
-              <div className="flex gap-4">
-                <a
-                  href="#"
-                  className="w-10 h-10 rounded-full grid place-items-center border border-[#002E45]/30 hover:bg-[#002E45]/6 transition-colors"
-                  aria-label="Instagram"
-                >
-                  <Instagram className="w-5 h-5 text-[#002E45]" />
-                </a>
-                <a
-                  href="#"
-                  className="w-10 h-10 rounded-full grid place-items-center border border-[#002E45]/30 hover:bg-[#002E45]/6 transition-colors"
-                  aria-label="Facebook"
-                >
-                  <Facebook className="w-5 h-5 text-[#002E45]" />
-                </a>
-              </div>
+              
             </div>
 
             {/* Enlaces */}
@@ -125,14 +110,71 @@ const Footer = () => {
               Última actualización: {new Date().toLocaleDateString()}
             </DialogDescription>
           </DialogHeader>
+
           <div className="space-y-4 text-sm leading-relaxed text-[hsl(210_40%_10%)]/90">
-            <p>Bienvenido a {nombre}. Al utilizar nuestro sitio y servicios aceptas estos términos.</p>
-            <h4 className="font-semibold">Uso del sitio</h4>
-            <p>El contenido es propiedad de {nombre}. Prohibida su reproducción sin autorización.</p>
-            <h4 className="font-semibold">Responsabilidad</h4>
-            <p>{nombre} no se responsabiliza por daños derivados del uso del sitio.</p>
-            <h4 className="font-semibold">Cambios</h4>
-            <p>Podemos actualizar estos términos en cualquier momento.</p>
+            <p>
+              Este resumen fija las reglas de uso y acceso a la cafetería ubicada en la planta alta del Bloque R. 
+              Su cumplimiento es obligatorio para el personal que labora en dicho Bloque.
+            </p>
+
+            <h4 className="font-semibold">1) Uso y acceso</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>El servicio de cafetería es gratuito y exclusivo para el personal que labora en el Bloque R.</li>
+              <li>Se espera mantener siempre un ambiente respetuoso y agradable.</li>
+            </ul>
+
+            <h4 className="font-semibold">2) Derechos de los usuarios</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Acceder a los servicios dentro del horario establecido.</li>
+              <li>Disfrutar de un espacio limpio y seguro.</li>
+              <li>Recibir información clara sobre ingredientes y productos de buena calidad.</li>
+              <li>Realizar comentarios o expresar insatisfacciones sobre el servicio.</li>
+              <li>Recibir trato igualitario y no discriminatorio.</li>
+            </ul>
+
+            <h4 className="font-semibold">3) Prohibiciones de los usuarios</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Ingresar alimentos/bebidas personales, fumar o consumir alcohol.</li>
+              <li>Usar lenguaje ofensivo, acosar o incurrir en actos de violencia.</li>
+              <li>Dañar instalaciones/equipos o manipular la máquina de café/insumos.</li>
+              <li>Ingresar al área interna de la cafetería o aglomerarse en ella.</li>
+              <li>Traer recipientes propios (tazas, jarras, etc.) o pedir más de un café por orden.</li>
+              <li>Solicitar cambios de proporciones no autorizadas ni alterar turnos de atención.</li>
+              <li>Usar tomacorrientes para cargar dispositivos personales.</li>
+              <li>Dejar basura en mesas o suelo; permanecer en el área tras recibir la orden.</li>
+            </ul>
+
+            <h4 className="font-semibold">4) Responsabilidades de los usuarios</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Respetar las normas, mantener orden y limpieza, y desechar residuos en los cestos.</li>
+              <li>Usar el servicio solo en horarios definidos y respetar los turnos.</li>
+              <li>Informar incidentes que afecten la seguridad o el bienestar.</li>
+              <li>Tratar con respeto al personal y a otros usuarios.</li>
+            </ul>
+
+            <h4 className="font-semibold">5) Responsabilidades del personal</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Brindar un servicio eficiente y cortés; mantener higiene y seguridad.</li>
+              <li>Atender sugerencias/quejas; informar novedades y necesidades de insumos.</li>
+              <li>Realizar limpieza y mantenimiento (incluido preventivo anual) de equipos.</li>
+              <li>Verificar que quien solicite el servicio pertenezca a la Institución.</li>
+              <li>Servir café (expreso, americano, capuchino, mocachino) en recipientes desechables autorizados, en horarios 07h30–19h00.</li>
+            </ul>
+
+            <h4 className="font-semibold">6) Sanciones</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Amonestación verbal.</li>
+              <li>Expulsión temporal (2 semanas) del servicio.</li>
+              <li>Prohibición permanente en casos graves o reincidencia.</li>
+              <li>Reparación o compensación económica por daños a instalaciones o equipos.</li>
+            </ul>
+            <p className="text-xs text-[hsl(210_20%_32%)]">
+              Procedimiento: el personal informa a su jefe inmediato, quien notifica al Rectorado; en faltas económicas, Talento Humano y el área Financiera gestionan el reporte y el descuento correspondiente.
+            </p>
+
+            <div className="text-xs text-[hsl(210_20%_32%)]/90 pt-2">
+              Fuente: Manual de Uso y Acceso a la Cafetería de la Universidad Estatal de Milagro (Código MAN.02, primera versión 02.08.2024).
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -146,17 +188,42 @@ const Footer = () => {
               Última actualización: {new Date().toLocaleDateString()}
             </DialogDescription>
           </DialogHeader>
+
           <div className="space-y-4 text-sm leading-relaxed text-[hsl(210_40%_10%)]/90">
-            <p>Respetamos tu privacidad y protegemos tus datos.</p>
-            <h4 className="font-semibold">Datos que recopilamos</h4>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>Información de contacto (si la proporcionas).</li>
-              <li>Datos de uso anónimos para mejorar la experiencia.</li>
-            </ul>
-            <h4 className="font-semibold">Tus derechos</h4>
             <p>
-              Puedes solicitar acceso, rectificación o eliminación escribiendo a{" "}
-              {conf?.correo || "contacto@coffeapp.com"}.
+              En {nombre} respetamos tu privacidad. Esta política describe de forma simple qué datos tratamos cuando usas nuestro sitio o haces un pedido.
+            </p>
+
+            <h4 className="font-semibold">Datos que podemos tratar</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li><span className="font-medium">Datos de contacto</span> que decidas compartir (p. ej., nombre para identificar tu pedido).</li>
+              <li><span className="font-medium">Datos técnicos</span> no identificables (IP aproximada, navegador, métricas de uso) para seguridad y mejora del servicio.</li>
+            </ul>
+
+            <h4 className="font-semibold">Para qué usamos los datos</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Gestionar y entregar tus pedidos.</li>
+              <li>Mejorar la estabilidad y experiencia del sitio.</li>
+              <li>Dar respuesta a solicitudes o incidencias.</li>
+            </ul>
+
+            <h4 className="font-semibold">Con quién los compartimos</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>No vendemos tus datos. Podemos usar proveedores de infraestructura (hosting/analítica) con obligaciones de confidencialidad.</li>
+              <li>Podemos revelar información si la ley lo exige o para proteger la seguridad del servicio.</li>
+            </ul>
+
+            <h4 className="font-semibold">Tus opciones</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Puedes pedir acceso, rectificación o eliminación de tus datos de contacto.</li>
+              <li>Si no deseas que se conserven datos opcionales, evita proporcionarlos.</li>
+            </ul>
+
+            <p>
+              Para ejercer tus derechos, escríbenos a <span className="font-medium">{`${
+                /* si hay correo en la config lo mostramos; si no, fallback */
+                "{conf?.correo || 'contacto@coffeapp.com'}"
+              }`}</span>.
             </p>
           </div>
         </DialogContent>
