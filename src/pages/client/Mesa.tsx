@@ -177,7 +177,7 @@ const ClientMesa = () => {
       }
       return [...prev, { item, cantidad: 1 }];
     });
-    toast({ title: 'Agregado al pedido', description: `${item.nombre} agregado` });
+
   };
 
   const removeFromCart = (itemId: string) => {
@@ -255,7 +255,7 @@ const ClientMesa = () => {
 
       setCart([]);
       setOrderNotes('');
-      toast({ title: 'Pedido realizado', description: `Se creó el pedido (${tipo})` });
+
     } catch (error: any) {
       toast({
         title: 'Error',
