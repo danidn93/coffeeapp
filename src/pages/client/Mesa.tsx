@@ -239,6 +239,8 @@ const ClientMesa = () => {
         .single();
 
       if (pedidoError) throw pedidoError;
+      
+      navigate(`/pedido/${pedido.id}?t=${token}`, { replace: true });
 
       const allItems = [...productItems, ...songItems];
       const pedidoItems = allItems.map(ci => ({

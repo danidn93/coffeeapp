@@ -9,6 +9,7 @@ import AdminLogin from '@/pages/admin/Login';
 import PublicLanding from '@/pages/PublicLanding';
 import Terminos from "@/pages/Terminos";
 import Privacidad from "@/pages/Privacidad";
+import ClientPedidoStatus from '@/pages/ClientPedidoStatus';
 
 // Admin pages
 import AdminLayout from '@/layouts/AdminLayout';
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/m/:slug" element={<ClientMesa />} />
             <Route path="/landing" element={<PublicLanding />} />
+            <Route path="/pedido/:id" element={<ClientPedidoStatus />} />
             {/* ⛔️ Quita la ruta pública de eventos 
                 <Route path="eventos" element={<AdminEventos />} /> */}
             <Route path="/terminos" element={<Terminos />} />
