@@ -1,16 +1,12 @@
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navigate } from 'react-router-dom';
 
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-}
+export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuth();
+  const loc = useLocation();
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { isAdmin } = useAuth();
-
-  if (!isAdmin) {
-    return <Navigate to="/admin/login" replace />;
+  if (!user) {
+    return <Navigate to="/admin/login" replace state={{ from: loc }} />;
   }
-
   return <>{children}</>;
 };

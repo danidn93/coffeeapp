@@ -19,7 +19,7 @@ type Config = {
 };
 
 export default function AdminLayout() {
-  const { isAdmin, logout } = useAuth();
+  const { user, logout } = useAuth(); // ✅ cualquier autenticado entra
 
   const [now, setNow] = useState<string>(() =>
     new Date().toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
@@ -47,6 +47,7 @@ export default function AdminLayout() {
     if (!error && data) setConf(data as Config);
   }, []);
 
+  // 🔓 ahora cualquier usuario (empleado/admin) puede cambiar el estado
   const toggleAbierto = async (val: boolean) => {
     if (savingOpen) return;
     setSavingOpen(true);
@@ -116,28 +117,27 @@ export default function AdminLayout() {
     };
   }, [refreshPendingCount, fetchConfig]);
 
-  if (!isAdmin) return <Navigate to="/admin/login" replace />;
+  // ✅ solo exige estar autenticado
+  if (!user) return <Navigate to="/admin/login" replace />;
 
   return (
     <>
-      {/* Listener: maneja sonido/toast solo cuando llega un pedido */}
+      {/* Listener de nuevos pedidos */}
       <NewOrderListener />
 
-      {/* Fondo con imagen fija + overlay azul UNEMI */}
+      {/* Fondo con overlay */}
       <div className="fixed inset-0 -z-10">
         <div
           className="h-full w-full bg-center bg-cover bg-no-repeat bg-fixed"
           style={{ backgroundImage: `url(${adminBg})` }}
         />
-        {/* Overlay azul (por si tu CSS no inyecta ::before) */}
-        {<div className="absolute inset-0 bg-[hsl(200_100%_13.5%/_0.88)]" />}
+        <div className="absolute inset-0 bg-[hsl(200_100%_13.5%/_0.88)]" />
       </div>
 
       <div className="unemi admin-full min-h-screen text-white">
         <header className="admin-header sticky top-0 z-20">
           <div className="mx-auto max-w-6xl px-4 py-3 flex justify-between items-center">
             <div className="flex items-center gap-3">
-              {/* Logo dentro de círculo blanco con anillo naranja */}
               <div className="bg-white rounded-full p-1 shadow-md ring-2 ring-[hsl(24_100%_50%/_0.6)]">
                 <img
                   src={conf?.logo_url || '/assets/logo-admin.png'}
@@ -151,13 +151,14 @@ export default function AdminLayout() {
                 <h1 className="text-2xl font-aventura tracking-wide">
                   {conf?.nombre_local || 'Panel Administrativo'}
                 </h1>
+
                 <div className="flex items-center gap-2">
                   <span className="text-white/90 text-sm">Estado del local</span>
                   <Switch
                     className="switch-white"
                     checked={!!conf?.abierto}
                     onCheckedChange={toggleAbierto}
-                    disabled={savingOpen || !conf}
+                    disabled={savingOpen || !conf} // ✅ ya NO depende del rol
                   />
                   <Badge className={conf?.abierto ? 'badge badge--accent' : 'badge'}>
                     {conf?.abierto ? 'Abierto' : 'Cerrado'}
@@ -167,6 +168,7 @@ export default function AdminLayout() {
             </div>
 
             <div className="flex items-center gap-3">
+              {/* Configuración visible para todos ahora */}
               <Link to="/admin/configuracion">
                 <Button
                   variant="outline"
@@ -199,7 +201,6 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        {/* Wrapper translúcido para apreciar el fondo detrás del contenido */}
         <main className="mx-auto max-w-6xl px-4 py-6">
           <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur">
             <Outlet />

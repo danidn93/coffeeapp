@@ -1,3 +1,4 @@
+// src/pages/admin/HistorialPedidos.tsx
 import { useEffect, useMemo, useState } from 'react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { supabase } from '@/integrations/supabase/client';
@@ -230,175 +231,194 @@ export default function HistorialPedidos() {
           </div>
         </header>
 
+        {/* 🔲 Contenedor blanco para filtros + resultados */}
         <main className="container mx-auto px-4 py-8">
-          {/* Filtros */}
-          <Card className="dashboard-card mb-6">
-            <CardHeader>
-              <CardTitle className="card-title">Filtros</CardTitle>
-              <CardDescription className="card-subtitle">Refina tu búsqueda por cliente, sala, fechas y producto</CardDescription>
-            </CardHeader>
-            <CardContent className="card-inner">
-              <div className="grid gap-4 md:grid-cols-6">
-                <div className="md:col-span-2">
-                  <Label className="text-white/90">Cliente</Label>
-                  <Input
-                    value={cliente}
-                    onChange={(e) => setCliente(e.target.value)}
-                    placeholder="Nombre del cliente"
-                    className="bg-white/90 text-[hsl(240_1.4%_13.5%)] placeholder:text-[hsl(240_1.4%_13.5%_/_.65)]"
-                  />
-                </div>
+          <div className="rounded-xl border bg-white text-slate-800 shadow-sm">
+            <div className="p-6 grid gap-6">
+              {/* Filtros */}
+              <Card className="bg-transparent shadow-none border border-slate-200">
+                <CardHeader>
+                  <CardTitle className="text-slate-900">Filtros</CardTitle>
+                  <CardDescription className="text-slate-600">
+                    Refina tu búsqueda por cliente, sala, fechas y producto
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-6">
+                    <div className="md:col-span-2">
+                      <Label className="text-slate-800">Cliente</Label>
+                      <Input
+                        value={cliente}
+                        onChange={(e) => setCliente(e.target.value)}
+                        placeholder="Nombre del cliente"
+                        className="bg-white text-slate-900 placeholder:text-slate-500"
+                      />
+                    </div>
 
-                <div className="md:col-span-1">
-                  <Label className="text-white/90">Sala</Label>
-                  <Select value={salaId} onValueChange={setSalaId}>
-                    <SelectTrigger className="bg-white/90 text-[hsl(240_1.4%_13.5%)]">
-                      <SelectValue placeholder="Todas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todas">Todas</SelectItem>
-                      {mesas.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="md:col-span-1">
-                  <Label className="text-white/90">Desde</Label>
-                  <Input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                    className="bg-white/90 text-[hsl(240_1.4%_13.5%)]"
-                  />
-                </div>
-
-                <div className="md:col-span-1">
-                  <Label className="text-white/90">Hasta</Label>
-                  <Input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
-                    className="bg-white/90 text-[hsl(240_1.4%_13.5%)]"
-                  />
-                </div>
-
-                <div className="md:col-span-1">
-                  <Label className="text-white/90">Producto</Label>
-                  <Input
-                    value={producto}
-                    onChange={(e) => setProducto(e.target.value)}
-                    placeholder="Ej: Michelada"
-                    className="bg-white/90 text-[hsl(240_1.4%_13.5%)]"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-4 flex gap-2">
-                <Button onClick={onBuscar} className="btn-accent">
-                  <Search className="h-4 w-4 mr-2" />
-                  Buscar
-                </Button>
-                <Button variant="outline" className="btn-white-hover" onClick={onReset}>
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Limpiar
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Resultados */}
-          {loading ? (
-            <div className="text-white/90">Buscando…</div>
-          ) : rows.length === 0 ? (
-            <Card className="dashboard-card">
-              <CardContent className="card-inner py-8 text-center text-white/85">
-                No se encontraron pedidos con esos filtros.
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {rows.map((p) => {
-                const sala = mesaNombreById[p.mesa_id] ?? 'Sala';
-                return (
-                  <Card key={p.id} className="dashboard-card overflow-hidden">
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="card-title flex items-center gap-2">
-                            <Package className="h-5 w-5" />
-                            {sala}
-                          </CardTitle>
-                          <CardDescription className="card-subtitle space-x-2">
-                            <span>{new Date(p.created_at).toLocaleString()}</span>
-                            <span>•</span>
-                            <span>Tipo: {p.tipo}</span>
-                            {p.name_user && (
-                              <>
-                                <span>•</span>
-                                <span>Cliente: {p.name_user}</span>
-                              </>
-                            )}
-                          </CardDescription>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className="badge">{p.estado}</Badge>
-                        </div>
-                      </div>
-                    </CardHeader>
-
-                    <CardContent className="pt-0 card-inner">
-                      {p.pedido_items?.length ? (
-                        <ul className="text-sm divide-y divide-white/10">
-                          {p.pedido_items.map((pi, idx) => (
-                            <li key={idx} className="py-2 flex items-start justify-between gap-4">
-                              <div className="min-w-0">
-                                <div className="font-medium leading-snug line-clamp-1 text-white">
-                                  {pi.items?.nombre}
-                                  {pi.nota ? (
-                                    <span className="text-white/80">{' — Nota: '}{pi.nota}</span>
-                                  ) : null}
-                                </div>
-                              </div>
-                              <div className="shrink-0">
-                                <Badge className="badge">x{pi.cantidad}</Badge>
-                              </div>
-                            </li>
+                    <div className="md:col-span-1">
+                      <Label className="text-slate-800">Sala</Label>
+                      <Select value={salaId} onValueChange={setSalaId}>
+                        <SelectTrigger className="bg-white text-slate-900">
+                          <SelectValue placeholder="Todas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todas">Todas</SelectItem>
+                          {mesas.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>
+                              {m.nombre}
+                            </SelectItem>
                           ))}
-                        </ul>
-                      ) : (
-                        <div className="text-sm text-white/85">Sin ítems asociados.</div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-              {/* Paginación */}
-              <div className="flex items-center justify-between mt-2">
-                <Button
-                  variant="outline"
-                  className="btn-white-hover"
-                  onClick={prevPage}
-                  disabled={page <= 1 || loading}
-                >
-                  Anterior
-                </Button>
-                <span className="text-white/85">Página {page}</span>
-                <Button
-                  variant="outline"
-                  className="btn-white-hover"
-                  onClick={nextPage}
-                  disabled={!hasMore || loading}
-                >
-                  Siguiente
-                </Button>
-              </div>
+                    <div className="md:col-span-1">
+                      <Label className="text-slate-800">Desde</Label>
+                      <Input
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        className="bg-white text-slate-900"
+                      />
+                    </div>
+
+                    <div className="md:col-span-1">
+                      <Label className="text-slate-800">Hasta</Label>
+                      <Input
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        className="bg-white text-slate-900"
+                      />
+                    </div>
+
+                    <div className="md:col-span-1">
+                      <Label className="text-slate-800">Producto</Label>
+                      <Input
+                        value={producto}
+                        onChange={(e) => setProducto(e.target.value)}
+                        placeholder="Ej: Michelada"
+                        className="bg-white text-slate-900 placeholder:text-slate-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex gap-2">
+                    <Button onClick={onBuscar} className="btn-accent">
+                      <Search className="h-4 w-4 mr-2" />
+                      Buscar
+                    </Button>
+                    <Button variant="outline" onClick={onReset}>
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Limpiar
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Resultados */}
+              {loading ? (
+                <div className="text-slate-700">Buscando…</div>
+              ) : rows.length === 0 ? (
+                <Card className="bg-transparent shadow-none border border-slate-200">
+                  <CardContent className="py-8 text-center text-slate-700">
+                    No se encontraron pedidos con esos filtros.
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-4">
+                  {rows.map((p) => {
+                    const sala = mesaNombreById[p.mesa_id] ?? 'Sala';
+                    return (
+                      <Card key={p.id} className="bg-transparent shadow-none border border-slate-200 overflow-hidden">
+                        <CardHeader className="pb-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle className="text-slate-900 flex items-center gap-2">
+                                <Package className="h-5 w-5" />
+                                {sala}
+                              </CardTitle>
+                              <CardDescription className="text-slate-600 space-x-2">
+                                <span>{new Date(p.created_at).toLocaleString()}</span>
+                                <span>•</span>
+                                <span>Tipo: {p.tipo}</span>
+                                {p.name_user && (
+                                  <>
+                                    <span>•</span>
+                                    <span>Cliente: {p.name_user}</span>
+                                  </>
+                                )}
+                              </CardDescription>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                className={
+                                  p.estado === 'pendiente'
+                                    ? 'bg-red-600 text-white'
+                                    : p.estado === 'preparando'
+                                    ? 'bg-amber-500 text-black'
+                                    : p.estado === 'listo'
+                                    ? 'bg-emerald-600 text-white'
+                                    : p.estado === 'liquidado'
+                                    ? 'bg-slate-900 text-white'
+                                    : 'bg-slate-300 text-slate-800'
+                                }
+                              >
+                                {p.estado}
+                              </Badge>
+                            </div>
+                          </div>
+                        </CardHeader>
+
+                        <CardContent className="pt-0">
+                          {p.pedido_items?.length ? (
+                            <ul className="text-sm divide-y divide-slate-200">
+                              {p.pedido_items.map((pi, idx) => (
+                                <li key={idx} className="py-2 flex items-start justify-between gap-4">
+                                  <div className="min-w-0">
+                                    <div className="font-medium leading-snug line-clamp-1 text-slate-900">
+                                      {pi.items?.nombre}
+                                      {pi.nota ? (
+                                        <span className="text-slate-700">{' — Nota: '}{pi.nota}</span>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                  <div className="shrink-0">
+                                    <Badge className="bg-slate-900 text-white">x{pi.cantidad}</Badge>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div className="text-sm text-slate-700">Sin ítems asociados.</div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+
+                  {/* Paginación */}
+                  <div className="flex items-center justify-between mt-2">
+                    <Button
+                      variant="outline"
+                      onClick={prevPage}
+                      disabled={page <= 1 || loading}
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-slate-700">Página {page}</span>
+                    <Button
+                      variant="outline"
+                      onClick={nextPage}
+                      disabled={!hasMore || loading}
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </main>
       </div>
     </ProtectedRoute>

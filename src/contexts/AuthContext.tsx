@@ -2,16 +2,21 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import Cookies from 'js-cookie';
 import { supabase } from '@/integrations/supabase/client';
 
+type Role = 'admin' | 'empleado' | 'staff';
+
 type SessionUser = {
   id: string;
   username: string;
   name: string | null;
-  role: 'admin' | 'empleado' | 'staff';
+  role: Role;
 };
 
 interface AuthContextType {
-  isAdmin: boolean;
   user: SessionUser | null;
+  isAdmin: boolean;
+  isEmpleado: boolean;
+  isStaff: boolean;
+  hasRole: (...roles: Role[]) => boolean;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
@@ -27,7 +32,6 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<SessionUser | null>(null);
 
-  // restablecer sesión desde cookie (opcional/simple)
   useEffect(() => {
     const raw = Cookies.get('admin_session');
     if (raw) {
@@ -41,28 +45,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    // llama a la RPC que valida usuario/contraseña
     const { data, error } = await supabase.rpc('admin_login', {
       p_username: username,
       p_password: password,
     });
-
     if (error) {
       console.error('[admin_login] error', error);
       return false;
     }
-
     const row = Array.isArray(data) ? data[0] : null;
     if (!row) return false;
+
+    const role = String(row.role ?? '').trim().toLowerCase() as Role;
 
     const sessionUser: SessionUser = {
       id: row.id,
       username: row.username,
       name: row.name,
-      role: row.role,
+      role,
     };
 
-    // guarda cookie 7 días
     Cookies.set('admin_session', JSON.stringify(sessionUser), { expires: 7 });
     setUser(sessionUser);
     return true;
@@ -73,14 +75,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
+  const isAdmin = !!user && user.role === 'admin';
+  const isEmpleado = !!user && user.role === 'empleado';
+  const isStaff = !!user && user.role === 'staff';
+  const hasRole = (...roles: Role[]) => !!user && roles.includes(user.role);
+
   return (
     <AuthContext.Provider
-      value={{
-        isAdmin: !!user && user.role === 'empleado',
-        user,
-        login,
-        logout,
-      }}
+      value={{ user, isAdmin, isEmpleado, isStaff, hasRole, login, logout }}
     >
       {children}
     </AuthContext.Provider>

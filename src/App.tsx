@@ -21,6 +21,8 @@ import AdminUsuarios from '@/pages/admin/Usuarios';
 import AdminItems from '@/pages/admin/Items';
 import AdminConfiguracion from '@/pages/admin/Configuracion';
 import HistorialPedidos from '@/pages/admin/HistorialPedidos';
+import AdminEncuestas from '@/pages/admin/Encuestas'; // ⬅️ NUEVO
+import AdminOnly from '@/components/AdminOnly';        // ⬅️ NUEVO
 
 export default function App() {
   return (
@@ -34,8 +36,6 @@ export default function App() {
             <Route path="/m/:slug" element={<ClientMesa />} />
             <Route path="/landing" element={<PublicLanding />} />
             <Route path="/pedido/:id" element={<ClientPedidoStatus />} />
-            {/* ⛔️ Quita la ruta pública de eventos 
-                <Route path="eventos" element={<AdminEventos />} /> */}
             <Route path="/terminos" element={<Terminos />} />
             <Route path="/privacidad" element={<Privacidad />} />
 
@@ -47,8 +47,15 @@ export default function App() {
               <Route path="mesas" element={<AdminMesas />} />
               <Route path="usuarios" element={<AdminUsuarios />} />
               <Route path="configuracion" element={<AdminConfiguracion />} />
-              <Route path="historial" element={<HistorialPedidos />} /> {/* ⬅️ nuevo */}
-              {/* ✅ Añade aquí la ruta /admin/eventos */}
+              <Route path="historial" element={<HistorialPedidos />} />
+              <Route
+                path="encuestas"
+                element={
+                  <AdminOnly>
+                    <AdminEncuestas />
+                  </AdminOnly>
+                }
+              />
             </Route>
 
             {/* 404 → login */}

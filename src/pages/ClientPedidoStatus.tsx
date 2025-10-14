@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { CheckCircle, Clock, Volume2, Star } from 'lucide-react';
+import { CheckCircle, Clock, Star } from 'lucide-react';
 
 // fondos / branding (igual a ClientMesa)
 import adminBg from '/assets/movil-bg.png';
@@ -136,17 +136,20 @@ export default function ClientPedidoStatus() {
   const [items, setItems] = useState<PedidoItemRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Audio "desbloqueable" como NewOrderListener
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const pendingPlayRef = useRef(false);
-
-  // encuesta
+  // encuesta (sin audio)
   const [showSurvey, setShowSurvey] = useState(false);
   const [ratingServicio, setRatingServicio] = useState<number>(5);
   const [ratingSistema, setRatingSistema] = useState<number>(5);
   const [comentario, setComentario] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [sendingSurvey, setSendingSurvey] = useState(false);
   const [showThanks, setShowThanks] = useState(false);
+
+  // comentario obligatorio si alguna calificación < 3
+  const needsComment = useMemo(
+    () => ratingServicio < 4 || ratingSistema < 4,
+    [ratingServicio, ratingSistema]
+  );
 
   const itemNames = useMemo(
     () => items.map((r) => r.items?.nombre).filter(Boolean) as string[],
@@ -154,28 +157,6 @@ export default function ClientPedidoStatus() {
   );
   const firstImage =
     useMemo(() => items.find((r) => r.items?.image_url)?.items?.image_url, [items]) || logo;
-
-  // Preparar audio y "unlock" en primer pointerdown
-  useEffect(() => {
-    audioRef.current = new Audio('/assets/sounds/new-order.mp3');
-    audioRef.current.preload = 'auto';
-
-    const unlock = () => {
-      if (!audioRef.current) return;
-      if (pendingPlayRef.current) {
-        pendingPlayRef.current = false;
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(() => {});
-      }
-      window.removeEventListener('pointerdown', unlock);
-    };
-    window.addEventListener('pointerdown', unlock);
-
-    return () => {
-      window.removeEventListener('pointerdown', unlock);
-      // no necesitamos limpiar nada más
-    };
-  }, []);
 
   // Carga + validar token (sin tocar BD)
   useEffect(() => {
@@ -258,27 +239,31 @@ export default function ClientPedidoStatus() {
     };
   }, [id, token, navigate]);
 
-  // Reproducir sonido + abrir encuesta cuando pase a "listo"
+  // Notificación (toast) + abrir encuesta cuando pase a "listo"
   const prevPasoRef = useRef<number>(0);
   useEffect(() => {
     const curPaso = pasoEstado(pedido?.estado);
     const prevPaso = prevPasoRef.current;
 
     if (prevPaso < 2 && curPaso === 2) {
-      // intentar reproducir; si falla, marcar como pendiente
-      (async () => {
-        try {
-          await audioRef.current?.play();
-        } catch {
-          pendingPlayRef.current = true;
-        }
+      // Solo notificación visual, sin audio
+      const texto = (() => {
+        const names = itemNames;
+        if (!names.length) return 'Tu pedido está listo.';
+        return names.length === 1 ? `Tu ${names[0]} está listo.` : `Tus ${names.join(', ')} están listos.`;
       })();
+
+      toast({
+        title: '¡Listo! 🎉',
+        description: texto,
+      });
+
       const t = setTimeout(() => setShowSurvey(true), 5000);
       prevPasoRef.current = curPaso;
       return () => clearTimeout(t);
     }
     prevPasoRef.current = curPaso;
-  }, [pedido?.estado]);
+  }, [pedido?.estado, itemNames]);
 
   // Cerrar encuesta -> mostrar gracias y redirigir
   const goLanding = () => navigate(token ? `/landing?t=${token}` : '/landing', { replace: true });
@@ -300,6 +285,18 @@ export default function ClientPedidoStatus() {
 
   const submitSurvey = async () => {
     if (!pedido) return;
+
+    // Validación: comentario obligatorio si alguna calificación < 3
+    if (needsComment && !comentario.trim()) {
+      toast({
+        title: 'Falta tu comentario',
+        description: 'Por favor cuéntanos qué podemos mejorar cuando la calificación es menor a 3.',
+        variant: 'destructive',
+      });
+      textareaRef.current?.focus();
+      return;
+    }
+
     try {
       setSendingSurvey(true);
       const { error } = await supabase.from('encuestas').insert({
@@ -502,20 +499,35 @@ export default function ClientPedidoStatus() {
               <StarRating value={ratingSistema} onChange={setRatingSistema} ariaLabel="Calificación sistema" />
             </div>
 
+            {/* Comentario con obligatoriedad condicional */}
             <div className="space-y-2">
-              <Label>Comentario (opcional)</Label>
+              <Label>
+                Comentario {needsComment && <span className="text-red-600 font-medium">*</span>}
+                <span className="block text-xs text-muted-foreground">
+                  {needsComment ? 'Obligatorio cuando alguna calificación es menor a 3.' : 'Opcional'}
+                </span>
+              </Label>
               <Textarea
+                ref={textareaRef}
                 rows={3}
                 value={comentario}
                 onChange={(e) => setComentario(e.target.value)}
-                placeholder="¿Algo que podamos mejorar?"
+                placeholder={needsComment ? 'Cuéntanos qué podemos mejorar…' : '¿Algo que podamos mejorar?'}
+                aria-invalid={needsComment && !comentario.trim() ? 'true' : 'false'}
+                className={needsComment && !comentario.trim() ? 'border-red-500 focus-visible:ring-red-500' : ''}
               />
+              {needsComment && !comentario.trim() && (
+                <p className="text-xs text-red-600">Este campo es obligatorio por la calificación ingresada.</p>
+              )}
             </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowSurvey(false)}>Cerrar</Button>
-            <Button onClick={submitSurvey} disabled={sendingSurvey}>
+            <Button
+              onClick={submitSurvey}
+              disabled={sendingSurvey || (needsComment && !comentario.trim())}
+            >
               {sendingSurvey ? 'Enviando…' : 'Enviar'}
             </Button>
           </DialogFooter>

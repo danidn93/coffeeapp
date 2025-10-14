@@ -1,30 +1,26 @@
-// src/pages/AdminDashboard.tsx (o donde lo tengas)
+// src/pages/admin/Dashboard.tsx
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { History } from 'lucide-react'; // ⬅️ nuevo
-
+import { History, Star } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Coffee, DoorOpen as TableIcon, Music, ShoppingCart, Calendar } from 'lucide-react';
+import { Coffee, DoorOpen as TableIcon, ShoppingCart } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const { logout } = useAuth(); // si no lo usas aquí, puedes quitarlo
+  const { isAdmin } = useAuth();
 
-  // estados
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState<string | null>(null);
 
-  // KPIs
   const [mesasActivas, setMesasActivas] = useState(0);
   const [productosCount, setProductosCount] = useState(0);
   const [pedidosActivos, setPedidosActivos] = useState(0);
   const [usersCount, setUsersCount] = useState(0);
   const [eventosCount, setEventosCount] = useState(0);
 
-  // Ventana del día (local)
   const { startISO, endISO } = useMemo(() => {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
@@ -69,10 +65,8 @@ export default function AdminDashboard() {
         setPedidosActivos(pedRes.error ? 0 : (pedRes.count ?? 0));
         setUsersCount(usersRes.error ? 0 : (usersRes.count ?? 0));
 
-        // pagos y mesasPendRes si luego los usas para KPIs de dinero o pendientes
-        const pagos = pagosRes.error ? [] : ((pagosRes.data as { total: number }[] | null) ?? []);
-        const filas = mesasPendRes.error ? [] : ((mesasPendRes.data as { mesa_id: string }[] | null) ?? []);
-
+        // pagos / mesasPend disponibles para KPIs futuros
+        void pagosRes; void factRes; void mesasPendRes;
       } catch (e: any) {
         console.error('[dashboard] fetchAll fatal:', e);
         setErrMsg(e?.message || 'No se pudo cargar el dashboard');
@@ -111,9 +105,8 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* GRID del dashboard con cards translúcidas */}
           <div className="dashboard-grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-            {/* 1) Salas */}
+            {/* Salas */}
             <Link to="/admin/mesas">
               <Card className="dashboard-card cursor-pointer">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -127,7 +120,7 @@ export default function AdminDashboard() {
               </Card>
             </Link>
 
-            {/* 2) Productos */}
+            {/* Productos */}
             <Link to="/admin/items">
               <Card className="dashboard-card cursor-pointer">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -143,7 +136,7 @@ export default function AdminDashboard() {
               </Card>
             </Link>
 
-            {/* 3) Pedidos activos */}
+            {/* Pedidos activos */}
             <Link to="/admin/pedidos">
               <Card className="dashboard-card cursor-pointer">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -157,7 +150,7 @@ export default function AdminDashboard() {
               </Card>
             </Link>
 
-            {/* 4) Historial de pedidos */}
+            {/* Historial de pedidos */}
             <Link to="/admin/historial">
               <Card className="cursor-pointer hover:shadow-lg transition-shadow dashboard-card">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -175,6 +168,21 @@ export default function AdminDashboard() {
               </Card>
             </Link>
 
+            {/* Encuestas — SOLO ADMIN */}
+            {isAdmin && (
+              <Link to="/admin/encuestas">
+                <Card className="dashboard-card cursor-pointer">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="card-title">Encuestas</CardTitle>
+                    <Star className="h-4 w-4 opacity-80" />
+                  </CardHeader>
+                  <CardContent className="card-inner">
+                    <div className="text-xl font-semibold">Ver y analizar feedback</div>
+                    <CardDescription className="card-subtitle">Promedios, filtros, exportación</CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+            )}
           </div>
         </main>
       </div>

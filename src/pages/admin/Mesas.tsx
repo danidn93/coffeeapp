@@ -184,7 +184,7 @@ const AdminMesas = () => {
   return (
     <ProtectedRoute>
       <div className="min-h-[60vh]">
-        {/* Header translúcido */}
+        {/* Header translúcido (se mantiene con tu tema oscuro) */}
         <header className="admin-header border-b border-white/10">
           <div className="container mx-auto px-4 py-4 flex items-center gap-4">
             <Link to="/admin">
@@ -199,135 +199,134 @@ const AdminMesas = () => {
           </div>
         </header>
 
+        {/* 🔲 Contenedor blanco para crear + listar salas */}
         <div className="container mx-auto px-4 py-8">
-          <div className="grid gap-6">
-            {/* Crear nueva sala (card translúcida) */}
-            <Card className="dashboard-card">
-              <CardHeader>
-                <CardTitle className="card-title">Crear Nueva Sala</CardTitle>
-                <CardDescription className="card-subtitle">
-                  Agrega una nueva sala al sistema
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="card-inner">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="flex-1">
-                    <Label htmlFor="mesa-name" className="text-white/90">Nombre de la Sala</Label>
-                    <Input
-                      id="mesa-name"
-                      value={newMesaName}
-                      onChange={(e) => setNewMesaName(e.target.value)}
-                      placeholder="Ej: Sala 1, VIP 1, etc."
-                      className="bg-white/90 text-[hsl(240_1.4%_13.5%)] placeholder:text-[hsl(240_1.4%_13.5%_/_.65)]"
-                    />
+          <div className="rounded-xl border bg-white text-slate-800 shadow-sm">
+            <div className="p-6 grid gap-6">
+              {/* Crear nueva sala */}
+              <Card className="bg-transparent shadow-none border border-slate-200">
+                <CardHeader>
+                  <CardTitle className="text-slate-900">Crear Nueva Sala</CardTitle>
+                  <CardDescription className="text-slate-600">
+                    Agrega una nueva sala al sistema
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="flex-1">
+                      <Label htmlFor="mesa-name" className="text-slate-800">Nombre de la Sala</Label>
+                      <Input
+                        id="mesa-name"
+                        value={newMesaName}
+                        onChange={(e) => setNewMesaName(e.target.value)}
+                        placeholder="Ej: Sala 1, VIP 1, etc."
+                        className="bg-white text-slate-900 placeholder:text-slate-500"
+                      />
+                    </div>
+
+                    <div className="flex items-end">
+                      <Button
+                        onClick={createMesa}
+                        disabled={isLoading || !newMesaName.trim()}
+                        className="btn-accent"
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        {isLoading ? 'Creando…' : 'Crear Sala'}
+                      </Button>
+                    </div>
                   </div>
+                </CardContent>
+              </Card>
 
-                  <div className="flex items-end">
-                    <Button
-                      onClick={createMesa}
-                      disabled={isLoading || !newMesaName.trim()}
-                      className="btn-accent"
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      {isLoading ? 'Creando…' : 'Crear Sala'}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              {/* Listado de salas */}
+              <Card className="bg-transparent shadow-none border border-slate-200">
+                <CardHeader>
+                  <CardTitle className="text-slate-900">Salas Existentes</CardTitle>
+                  <CardDescription className="text-slate-600">
+                    Lista de todas las salas en el sistema
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-slate-600">Nombre</TableHead>
+                        <TableHead className="text-slate-600">Slug</TableHead>
+                        <TableHead className="text-slate-600">Estado</TableHead>
+                        <TableHead className="text-slate-600">Creación</TableHead>
+                        <TableHead className="text-slate-600">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {mesas.map((mesa) => {
+                        const isEditing = editingId === mesa.id;
+                        return (
+                          <TableRow key={mesa.id} className="border-slate-200">
+                            <TableCell className="font-medium text-slate-900">
+                              {mesa.nombre}
+                            </TableCell>
+                            <TableCell className="text-slate-800">{mesa.slug}</TableCell>
 
-            {/* Listado (card translúcida) */}
-            <Card className="dashboard-card">
-              <CardHeader>
-                <CardTitle className="card-title">Salas Existentes</CardTitle>
-                <CardDescription className="card-subtitle">
-                  Lista de todas las salas en el sistema
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="card-inner">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-white/80">Nombre</TableHead>
-                      <TableHead className="text-white/80">Slug</TableHead>
-                      <TableHead className="text-white/80">Estado</TableHead>
-                      <TableHead className="text-white/80">Creación</TableHead>
-                      <TableHead className="text-white/80">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {mesas.map((mesa) => {
-                      const isEditing = editingId === mesa.id;
-                      return (
-                        <TableRow key={mesa.id}>
-                          <TableCell className="font-medium text-white">
-                            {mesa.nombre}
-                          </TableCell>
-                          <TableCell className="text-white/90">{mesa.slug}</TableCell>
+                            {/* Columna Estado con Switch */}
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <Switch
+                                  checked={mesa.activa}
+                                  onCheckedChange={(val) => toggleActiva(mesa, Boolean(val))}
+                                  aria-label={`Cambiar estado de ${mesa.nombre}`}
+                                />
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs ${
+                                    mesa.activa
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : 'bg-red-100 text-red-700'
+                                  }`}
+                                >
+                                  {mesa.activa ? 'Activa' : 'Inactiva'}
+                                </span>
+                              </div>
+                            </TableCell>
 
-                          {/* Columna Estado con Switch blanco */}
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Switch
-                                className="switch-white"
-                                checked={mesa.activa}
-                                onCheckedChange={(val) => toggleActiva(mesa, Boolean(val))}
-                                aria-label={`Cambiar estado de ${mesa.nombre}`}
-                              />
-                              <span
-                                className={`px-2 py-1 rounded-full text-xs ${
-                                  mesa.activa
-                                    ? 'bg-[hsl(150_80%_94%)] text-[hsl(150_30%_22%)]'
-                                    : 'bg-[hsl(0_80%_95%)] text-[hsl(0_60%_30%)]'
-                                }`}
-                              >
-                                {mesa.activa ? 'Activa' : 'Inactiva'}
-                              </span>
-                            </div>
-                          </TableCell>
+                            <TableCell className="text-slate-700">
+                              {new Date(mesa.created_at).toLocaleDateString()}
+                            </TableCell>
 
-                          <TableCell className="text-white/80">
-                            {new Date(mesa.created_at).toLocaleDateString()}
-                          </TableCell>
-
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="btn-white-hover"
-                                onClick={() => generateQRCode(mesa)}
-                                title="Generar Código QR"
-                              >
-                                <QrCode className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="btn-white-hover"
-                                onClick={() => copyMesaURL(mesa)}
-                                title="Copiar enlace de la sala"
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="btn-white-hover"
-                                onClick={() => deleteMesa(mesa.id)}
-                                title="Eliminar sala"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => generateQRCode(mesa)}
+                                  title="Generar Código QR"
+                                >
+                                  <QrCode className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => copyMesaURL(mesa)}
+                                  title="Copiar enlace de la sala"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => deleteMesa(mesa.id)}
+                                  title="Eliminar sala"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>

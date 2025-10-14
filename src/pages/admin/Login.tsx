@@ -1,7 +1,6 @@
-// src/pages/admin/Login.tsx
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,36 +9,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Eye, EyeOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
-// Fondos
 import adminBgDesktop from '/assets/admin-bg.png';
 import adminBgMobile from '/assets/movil-bg.png';
-
-// Logo
 import logo from '/assets/logo-admin.png';
 
 const AdminLogin = () => {
-  const { isAdmin, login } = useAuth();
+  const { user, login } = useAuth(); // <- usar user
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
-  // Fondo responsivo
   const [bgUrl, setBgUrl] = useState<string>(adminBgMobile);
-
-  // Altura visual segura (para teclado en móviles)
   const [minH, setMinH] = useState<string>('100svh');
 
   useEffect(() => {
-    // Match media para elegir imagen de fondo
-    const mq = window.matchMedia('(min-width: 1024px)'); // lg:
+    const mq = window.matchMedia('(min-width: 1024px)');
     const applyBg = () => setBgUrl(mq.matches ? adminBgDesktop : adminBgMobile);
     applyBg();
     if (mq.addEventListener) {
       mq.addEventListener('change', applyBg);
       return () => mq.removeEventListener('change', applyBg);
     } else {
-      // Safari legacy
       // @ts-ignore
       mq.addListener(applyBg);
       return () => {
@@ -50,13 +42,11 @@ const AdminLogin = () => {
   }, []);
 
   useEffect(() => {
-    // Ajusta el alto mínimo cuando aparece el teclado (visualViewport)
     const setVh = () => {
       const h = window.visualViewport?.height ?? window.innerHeight;
       setMinH(`${h}px`);
     };
     setVh();
-
     window.visualViewport?.addEventListener('resize', setVh);
     window.addEventListener('resize', setVh);
     return () => {
@@ -65,7 +55,8 @@ const AdminLogin = () => {
     };
   }, []);
 
-  if (isAdmin) return <Navigate to="/admin" replace />;
+  // ✅ Si ya hay sesión (admin/empleado/staff), sal del login
+  if (user) return <Navigate to="/admin" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,8 +66,10 @@ const AdminLogin = () => {
       if (success) {
         toast({
           title: 'Inicio de sesión exitoso',
-          description: 'Bienvenido al panel de administración',
+          description: 'Bienvenido al panel',
         });
+        // ✅ Navega al dashboard (para cualquier rol autenticado)
+        navigate('/admin', { replace: true });
       } else {
         toast({
           title: 'Error de autenticación',
@@ -96,48 +89,25 @@ const AdminLogin = () => {
   };
 
   return (
-    <div
-      className="unemi admin-full relative text-white"
-      style={{ minHeight: minH }}
-    >
-      {/* Fondo + overlay azul UNEMI */}
+    <div className="unemi admin-full relative text-white" style={{ minHeight: minH }}>
       <div className="absolute inset-0 -z-10">
-        <div
-          className="h-full w-full bg-no-repeat bg-center bg-cover"
-          style={{ backgroundImage: `url(${bgUrl})` }}
-        />
-        {/* Overlay principal (azul UNEMI) */}
+        <div className="h-full w-full bg-no-repeat bg-center bg-cover" style={{ backgroundImage: `url(${bgUrl})` }} />
         <div className="absolute inset-0 bg-[hsl(200_100%_13.5%/_0.88)]" />
-        {/* Degradado sutil para legibilidad del lado izquierdo en desktop */}
         <div className="hidden lg:block absolute inset-y-0 left-0 w-1/2 bg-[linear-gradient(90deg,rgba(0,0,0,0.35)_0%,rgba(0,0,0,0.15)_60%,rgba(0,0,0,0)_100%)]" />
       </div>
 
-      {/* Contenido */}
       <div className="w-full h-full">
         <div className="container mx-auto px-4 min-h-[inherit]">
-          {/* Grid a dos columnas en desktop, con altura completa para centrar verticalmente */}
           <div className="grid min-h-[inherit] lg:min-h-screen lg:grid-cols-2 items-center">
-            {/* Columna izquierda (form) */}
             <div className="flex justify-center lg:justify-start self-center">
-              {/* wrapper con overflow-auto para acomodarse al teclado en móviles */}
               <div className="w-full max-w-md lg:ml-2 overflow-auto rounded-2xl">
                 <Card className="w-full dashboard-card bg-white/10 backdrop-blur-md border-white/10">
                   <CardHeader className="text-center space-y-3">
-                    {/* LOGO circular blanco con aro naranja */}
                     <div className="mx-auto bg-white rounded-full p-1 shadow-md ring-2 ring-[hsl(24_100%_50%/_0.6)] w-max">
-                      <img
-                        src={logo}
-                        alt="Logo"
-                        className="h-16 w-16 sm:h-20 sm:w-20 rounded-full object-contain bg-white"
-                        draggable={false}
-                      />
+                      <img src={logo} alt="Logo" className="h-16 w-16 sm:h-20 sm:w-20 rounded-full object-contain bg-white" draggable={false} />
                     </div>
-                    <CardTitle className="text-2xl font-aventura tracking-wide">
-                      Panel Administrativo
-                    </CardTitle>
-                    <CardDescription className="card-subtitle text-white/85">
-                      Ingresa tus credenciales para acceder
-                    </CardDescription>
+                    <CardTitle className="text-2xl font-aventura tracking-wide">Panel Administrativo</CardTitle>
+                    <CardDescription className="card-subtitle text-white/85">Ingresa tus credenciales para acceder</CardDescription>
                   </CardHeader>
 
                   <CardContent className="card-inner">
@@ -194,12 +164,10 @@ const AdminLogin = () => {
                   </CardContent>
                 </Card>
 
-                {/* espacio seguro para evitar superposición con la barra/teclado en móviles */}
                 <div className="h-[env(safe-area-inset-bottom)]" />
               </div>
             </div>
 
-            {/* Columna derecha vacía (solo para forzar alineación izquierda en desktop) */}
             <div className="hidden lg:block" />
           </div>
         </div>

@@ -18,7 +18,7 @@ type PedidoRow = {
   estado: EstadoPedido;
   created_at: string;
   name_user: string | null;
-  notas: string | null; // 👈 nota general del pedido
+  notas: string | null; // nota general del pedido
   pedido_items: {
     cantidad: number;
     nota?: string | null;
@@ -40,7 +40,7 @@ const AdminPedidos = () => {
   useEffect(() => {
     beepRef.current = new Audio(audioSrc);
     beepRef.current.preload = 'auto';
-    // Intento de autoplay al montar; si falla, lo desbloqueamos en el primer toque/click
+    // Intento de autoplay al montar; si falla, se desbloquea en el primer pointer
     beepRef.current.play().catch(() => {
       const unlock = () => {
         beepRef.current?.play().catch(() => {});
@@ -62,15 +62,13 @@ const AdminPedidos = () => {
   useEffect(() => {
     fetchPedidosAndMesas();
 
-    // Realtime:
+    // Realtime
     const channel = supabase
       .channel('pedidos-realtime')
-      // Ding solo en INSERT
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos' }, async () => {
         await playDing();
         fetchPedidosAndMesas();
       })
-      // Cualquier cambio en pedidos o pedido_items refresca
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, fetchPedidosAndMesas)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedido_items' }, fetchPedidosAndMesas)
       .subscribe();
@@ -85,7 +83,7 @@ const AdminPedidos = () => {
     try {
       setIsLoading(true);
 
-      // 1) Pedidos activos (sin join a mesas)
+      // 1) Pedidos activos
       const { data: pedidosData, error: pedErr } = await supabase
         .from('pedidos')
         .select(`
@@ -110,7 +108,7 @@ const AdminPedidos = () => {
       const list = (pedidosData as PedidoRow[]) ?? [];
       setPedidos(list);
 
-      // 2) Buscar nombres de mesas por mesa_id
+      // 2) Nombres de mesas
       const mesaIds = Array.from(new Set(list.map(p => p.mesa_id))).filter(Boolean);
       if (mesaIds.length) {
         const { data: mesasData, error: mesasErr } = await supabase
@@ -169,118 +167,124 @@ const AdminPedidos = () => {
   return (
     <ProtectedRoute>
       <div className="min-h-[60vh]">
-        <header className="border-b">
+        {/* Header translúcido (tema oscuro del layout) */}
+        <header className="admin-header border-b border-white/10">
           <div className="container mx-auto px-4 py-4 flex items-center gap-4">
             <Link to="/admin">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="btn-white-hover">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Volver
               </Button>
             </Link>
-            <h1 className="text-2xl font-bold text-white">Pedidos en tiempo real</h1>
+            <h1 className="text-2xl font-aventura tracking-wide text-white">Pedidos en tiempo real</h1>
             <Badge variant="secondary">{pedidos.length} activos</Badge>
           </div>
         </header>
 
+        {/* 🔲 Contenedor blanco para la lista de pedidos */}
         <main className="container mx-auto px-4 py-8">
-          {pedidos.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center text-muted-foreground">
-                  <Clock className="mx-auto h-12 w-12 mb-4" />
-                  <p>No hay pedidos activos en este momento</p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {pedidos.map((pedido) => {
-                const salaNombre = mesaNombreById[pedido.mesa_id] ?? 'Sala';
-                const next = getNextEstado(pedido.estado);
+          <div className="rounded-xl border bg-white text-slate-800 shadow-sm">
+            <div className="p-6">
+              {pedidos.length === 0 ? (
+                <Card className="bg-transparent shadow-none border border-slate-200">
+                  <CardContent className="pt-6">
+                    <div className="text-center text-slate-600">
+                      <Clock className="mx-auto h-12 w-12 mb-4" />
+                      <p>No hay pedidos activos en este momento</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-4">
+                  {pedidos.map((pedido) => {
+                    const salaNombre = mesaNombreById[pedido.mesa_id] ?? 'Sala';
+                    const next = getNextEstado(pedido.estado);
 
-                return (
-                  <Card key={pedido.id} className="overflow-hidden">
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="flex items-center gap-2">
-                            <Package className="h-5 w-5" />
-                            {salaNombre}
-                          </CardTitle>
-                          <CardDescription className="space-x-2">
-                            <span>{new Date(pedido.created_at).toLocaleString()}</span>
-                            <span>•</span>
-                            <span>Tipo: {pedido.tipo}</span>
-                            {pedido.name_user && (
-                              <>
+                    return (
+                      <Card key={pedido.id} className="bg-transparent shadow-none border border-slate-200 overflow-hidden">
+                        <CardHeader className="pb-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle className="flex items-center gap-2 text-slate-900">
+                                <Package className="h-5 w-5" />
+                                {salaNombre}
+                              </CardTitle>
+                              <CardDescription className="space-x-2 text-slate-600">
+                                <span>{new Date(pedido.created_at).toLocaleString()}</span>
                                 <span>•</span>
-                                <span>Cliente: {pedido.name_user}</span>
-                              </>
-                            )}
-                          </CardDescription>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant={
-                              pedido.estado === 'pendiente'
-                                ? 'destructive'
-                                : pedido.estado === 'preparando'
-                                ? 'secondary'
-                                : 'outline'
-                            }
-                          >
-                            {pedido.estado}
-                          </Badge>
-
-                          {next && (
-                            <Button size="sm" onClick={() => updateEstado(pedido.id, next)}>
-                              <CheckCircle className="mr-2 h-4 w-4" />
-                              {`Marcar como ${next}`}
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* 👇 Nota general del pedido (si existe) */}
-                      {pedido.notas && (
-                        <div className="mt-3 rounded-lg border bg-muted/40 px-3 py-2 text-sm text-foreground flex items-start gap-2">
-                          <StickyNote className="h-4 w-4 mt-0.5 opacity-70" />
-                          <span className="whitespace-pre-wrap">{pedido.notas}</span>
-                        </div>
-                      )}
-                    </CardHeader>
-
-                    {/* Ítems del pedido y nota por ítem (si hay) */}
-                    <CardContent className="pt-0">
-                      {pedido.pedido_items?.length ? (
-                        <ul className="text-sm divide-y">
-                          {pedido.pedido_items.map((pi, idx) => (
-                            <li key={idx} className="py-2 flex items-start justify-between gap-4">
-                              <div className="min-w-0">
-                                <div className="font-medium leading-snug line-clamp-1">
-                                  {pi.items?.nombre}
-                                  {pedido.name_user ? ` — ${pedido.name_user}` : ''}
-                                </div>
-                                {pi.nota && (
-                                  <div className="text-xs text-muted-foreground">Nota: {pi.nota}</div>
+                                <span>Tipo: {pedido.tipo}</span>
+                                {pedido.name_user && (
+                                  <>
+                                    <span>•</span>
+                                    <span>Cliente: {pedido.name_user}</span>
+                                  </>
                                 )}
-                              </div>
-                              <div className="shrink-0">
-                                <Badge variant="secondary">x{pi.cantidad}</Badge>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <div className="text-sm text-muted-foreground">Sin ítems asociados.</div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                              </CardDescription>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                className={
+                                  pedido.estado === 'pendiente'
+                                    ? 'bg-red-600 text-white'
+                                    : pedido.estado === 'preparando'
+                                    ? 'bg-amber-500 text-black'
+                                    : 'bg-slate-300 text-slate-800'
+                                }
+                              >
+                                {pedido.estado}
+                              </Badge>
+
+                              {next && (
+                                <Button size="sm" onClick={() => updateEstado(pedido.id, next)}>
+                                  <CheckCircle className="mr-2 h-4 w-4" />
+                                  {`Marcar como ${next}`}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Nota general del pedido (si existe) */}
+                          {pedido.notas && (
+                            <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 flex items-start gap-2">
+                              <StickyNote className="h-4 w-4 mt-0.5 opacity-70" />
+                              <span className="whitespace-pre-wrap">{pedido.notas}</span>
+                            </div>
+                          )}
+                        </CardHeader>
+
+                        {/* Ítems del pedido y nota por ítem (si hay) */}
+                        <CardContent className="pt-0">
+                          {pedido.pedido_items?.length ? (
+                            <ul className="text-sm divide-y divide-slate-200">
+                              {pedido.pedido_items.map((pi, idx) => (
+                                <li key={idx} className="py-2 flex items-start justify-between gap-4">
+                                  <div className="min-w-0">
+                                    <div className="font-medium leading-snug line-clamp-1 text-slate-900">
+                                      {pi.items?.nombre}
+                                      {pedido.name_user ? ` — ${pedido.name_user}` : ''}
+                                    </div>
+                                    {pi.nota && (
+                                      <div className="text-xs text-slate-600">Nota: {pi.nota}</div>
+                                    )}
+                                  </div>
+                                  <div className="shrink-0">
+                                    <Badge className="bg-slate-900 text-white">x{pi.cantidad}</Badge>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div className="text-sm text-slate-600">Sin ítems asociados.</div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </main>
       </div>
     </ProtectedRoute>

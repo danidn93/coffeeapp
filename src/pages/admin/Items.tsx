@@ -197,7 +197,7 @@ const AdminItems = () => {
   return (
     <ProtectedRoute>
       <div className="min-h-[60vh]">
-        {/* Header translúcido */}
+        {/* Header translúcido (tema oscuro de tu layout) */}
         <header className="admin-header border-b border-white/10">
           <div className="container mx-auto px-4 py-4 flex items-center gap-4">
             <Link to="/admin">
@@ -212,158 +212,160 @@ const AdminItems = () => {
                 placeholder="Buscar por nombre o descripción…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-56 bg-white/90 text-[hsl(240_1.4%_13.5%)] placeholder:text-[hsl(240_1.4%_13.5%_/_.65)]"
+                className="w-56 bg-white/90 text-[hsl(240_1.4%_13.5%)] placeholder:text-[hsl(240_1.4%_13.5%/_0.65)]"
               />
             </div>
           </div>
         </header>
 
+        {/* 🔲 Contenedor blanco para crear + listar productos */}
         <main className="container mx-auto px-4 py-8">
-          <div className="grid gap-6">
-            {/* Crear nuevo item (Card translúcido) */}
-            <Card className="dashboard-card">
-              <CardHeader>
-                <CardTitle className="card-title">Crear Nuevo Item</CardTitle>
-                <CardDescription className="card-subtitle">
-                  Agrega un nuevo producto al sistema
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="card-inner">
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
-                  <div className="lg:col-span-2">
-                    <Label htmlFor="nombre" className="text-white/90">Nombre</Label>
-                    <Input
-                      id="nombre"
-                      value={formData.nombre}
-                      onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                      placeholder="Ej: Michelada"
-                      className="bg-white/90 text-[hsl(240_1.4%_13.5%)]"
-                    />
+          <div className="rounded-xl border bg-white text-slate-800 shadow-sm">
+            <div className="p-6 grid gap-6">
+              {/* Crear nuevo item */}
+              <Card className="bg-transparent shadow-none border border-slate-200">
+                <CardHeader>
+                  <CardTitle className="text-slate-900">Crear Nuevo Producto</CardTitle>
+                  <CardDescription className="text-slate-600">
+                    Agrega un nuevo producto al sistema
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+                    <div className="lg:col-span-2">
+                      <Label htmlFor="nombre" className="text-slate-800">Nombre</Label>
+                      <Input
+                        id="nombre"
+                        value={formData.nombre}
+                        onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                        placeholder="Ej: Expreso"
+                        className="bg-white text-slate-900 placeholder:text-slate-500"
+                      />
+                    </div>
+
+                    <div className="lg:col-span-6">
+                      <Label htmlFor="description" className="text-slate-800">Descripción (opcional)</Label>
+                      <Input
+                        id="description"
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        placeholder="Ej: Bolón mixto con queso y chicharrón. Con salsa de queso."
+                        className="bg-white text-slate-900 placeholder:text-slate-500"
+                      />
+                    </div>
+
+                    <div className="lg:col-span-1 flex items-end">
+                      <Button
+                        onClick={createItem}
+                        disabled={isLoading || !formData.nombre.trim()}
+                        className="w-full btn-accent"
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        {isLoading ? 'Creando…' : 'Crear'}
+                      </Button>
+                    </div>
                   </div>
+                </CardContent>
+              </Card>
 
-                  <div className="lg:col-span-6">
-                    <Label htmlFor="description" className="text-white/90">Descripción (opcional)</Label>
-                    <Input
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      placeholder="Ej: Bolón mixto con queso y chicharrón. Con salsa de queso."
-                      className="bg-white/90 text-[hsl(240_1.4%_13.5%)]"
-                    />
-                  </div>
+              {/* Listado de productos */}
+              <Card className="bg-transparent shadow-none border border-slate-200">
+                <CardHeader>
+                  <CardTitle className="text-slate-900 flex items-center gap-2">
+                    Productos <Badge className="bg-slate-900 text-white">{productos.length}</Badge>
+                  </CardTitle>
+                  <CardDescription className="text-slate-600">
+                    Incluye imagen, descripción, edición y disponibilidad
+                  </CardDescription>
+                </CardHeader>
 
-                  <div className="lg:col-span-1 flex items-end">
-                    <Button
-                      onClick={createItem}
-                      disabled={isLoading || !formData.nombre.trim()}
-                      className="w-full btn-accent"
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      {isLoading ? 'Creando…' : 'Crear'}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                <CardContent>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      const item = items.find((it) => it.id === uploadingId);
+                      if (file && item) onUploadImage(item, file);
+                    }}
+                  />
 
-            {/* Listado de productos (Card translúcido) */}
-            <Card className="dashboard-card">
-              <CardHeader>
-                <CardTitle className="card-title flex items-center gap-2">
-                  Productos <Badge className="badge">{productos.length}</Badge>
-                </CardTitle>
-                <CardDescription className="card-subtitle">
-                  Incluye imagen, descripción, edición y disponibilidad
-                </CardDescription>
-              </CardHeader>
-
-              <CardContent className="card-inner">
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    const item = items.find((it) => it.id === uploadingId);
-                    if (file && item) onUploadImage(item, file);
-                  }}
-                />
-
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-white/80">Imagen</TableHead>
-                      <TableHead className="text-white/80">Nombre</TableHead>
-                      <TableHead className="text-white/80">Descripción</TableHead>
-                      <TableHead className="text-white/80">Estado</TableHead>
-                      <TableHead className="text-white/80">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-
-                  <TableBody>
-                    {productos.map((producto) => (
-                      <TableRow key={producto.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {producto.image_url ? (
-                              <img
-                                src={producto.image_url}
-                                className="h-12 w-12 object-cover rounded ring-1 ring-white/30"
-                                alt={producto.nombre}
-                              />
-                            ) : (
-                              <div className="h-12 w-12 rounded bg-white/20 grid place-items-center text-xs text-white/90">
-                                Sin img
-                              </div>
-                            )}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="btn-white-hover"
-                              onClick={() => {
-                                setUploadingId(producto.id);
-                                fileRef.current?.click();
-                              }}
-                              disabled={uploadingId === producto.id}
-                            >
-                              <ImagePlus className="h-4 w-4 mr-1" />
-                              {uploadingId === producto.id ? 'Subiendo…' : 'Cambiar'}
-                            </Button>
-                          </div>
-                        </TableCell>
-
-                        <TableCell className="font-medium text-white">{producto.nombre}</TableCell>
-
-                        <TableCell className="max-w-[360px]">
-                          <span className="line-clamp-2 text-sm text-white/80">
-                            {producto.description || '—'}
-                          </span>
-                        </TableCell>
-
-                        <TableCell>
-                          <Badge
-                            className={producto.disponible ? 'badge badge--accent cursor-pointer' : 'badge cursor-pointer'}
-                            onClick={() => toggleDisponible(producto.id, producto.disponible)}
-                          >
-                            {producto.disponible ? 'Disponible' : 'No disponible'}
-                          </Badge>
-                        </TableCell>
-
-                        <TableCell className="flex gap-2">
-                          <Button size="sm" variant="outline" className="btn-white-hover" onClick={() => startEdit(producto)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="outline" className="btn-white-hover" onClick={() => deleteItem(producto.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-slate-200">
+                        <TableHead className="text-slate-600">Imagen</TableHead>
+                        <TableHead className="text-slate-600">Nombre</TableHead>
+                        <TableHead className="text-slate-600">Descripción</TableHead>
+                        <TableHead className="text-slate-600">Estado</TableHead>
+                        <TableHead className="text-slate-600">Acciones</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                    </TableHeader>
+
+                    <TableBody>
+                      {productos.map((producto) => (
+                        <TableRow key={producto.id} className="border-slate-200">
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {producto.image_url ? (
+                                <img
+                                  src={producto.image_url}
+                                  className="h-12 w-12 object-cover rounded ring-1 ring-slate-200"
+                                  alt={producto.nombre}
+                                />
+                              ) : (
+                                <div className="h-12 w-12 rounded bg-slate-100 grid place-items-center text-xs text-slate-500">
+                                  Sin img
+                                </div>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setUploadingId(producto.id);
+                                  fileRef.current?.click();
+                                }}
+                                disabled={uploadingId === producto.id}
+                              >
+                                <ImagePlus className="h-4 w-4 mr-1" />
+                                {uploadingId === producto.id ? 'Subiendo…' : 'Cambiar'}
+                              </Button>
+                            </div>
+                          </TableCell>
+
+                          <TableCell className="font-medium text-slate-900">{producto.nombre}</TableCell>
+
+                          <TableCell className="max-w-[420px]">
+                            <span className="line-clamp-2 text-sm text-slate-700">
+                              {producto.description || '—'}
+                            </span>
+                          </TableCell>
+
+                          <TableCell>
+                            <Badge
+                              className={`cursor-pointer ${producto.disponible ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-slate-300 text-slate-800 hover:bg-slate-400'}`}
+                              onClick={() => toggleDisponible(producto.id, producto.disponible)}
+                            >
+                              {producto.disponible ? 'Disponible' : 'No disponible'}
+                            </Badge>
+                          </TableCell>
+
+                          <TableCell className="flex gap-2">
+                            <Button size="sm" variant="outline" onClick={() => startEdit(producto)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => deleteItem(producto.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </main>
       </div>
@@ -399,7 +401,7 @@ const AdminItems = () => {
           )}
 
           <DialogFooter>
-            <Button variant="outline" className="btn-white-hover" onClick={() => setEditOpen(false)}>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
               Cancelar
             </Button>
             <Button onClick={updateItem} disabled={!editItem} className="btn-accent">
