@@ -504,7 +504,7 @@ export default function ClientPedidoStatus() {
               <Label>
                 Comentario {needsComment && <span className="text-red-600 font-medium">*</span>}
                 <span className="block text-xs text-muted-foreground">
-                  {needsComment ? 'Obligatorio cuando alguna calificación es menor a 3.' : 'Opcional'}
+                  {needsComment ? 'Obligatorio cuando alguna calificación es menor igual a 3.' : 'Opcional'}
                 </span>
               </Label>
               <Textarea

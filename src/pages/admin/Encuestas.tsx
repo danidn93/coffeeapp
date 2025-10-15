@@ -215,12 +215,12 @@ export default function AdminEncuestas() {
         header.join(','),
         ...rows.map(r =>
           [
-            new Date(r.created_at).toLocaleString().replaceAll(',', ''),
-            (r.mesas?.nombre ?? '').replaceAll(',', ' '),
-            (r.pedidos?.name_user ?? '').replaceAll(',', ' '),
+            new Date(r.created_at).toLocaleString().replace(',', ''),
+            (r.mesas?.nombre ?? '').replace(',', ' '),
+            (r.pedidos?.name_user ?? '').replace(',', ' '),
             r.rating_servicio,
             r.rating_sistema,
-            JSON.stringify(r.comentario ?? '').replaceAll(',', ' '),
+            JSON.stringify(r.comentario ?? '').replace(',', ' '),
           ].join(',')
         ),
       ].join('\n');
