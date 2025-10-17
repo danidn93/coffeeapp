@@ -58,7 +58,7 @@ export default function NewOrderListener() {
           // toast navegable
           toast({
             title: '¡Nuevo pedido!',
-            description: mesaNombre ? `Mesa ${mesaNombre} realizó un pedido` : 'Se registró un nuevo pedido',
+            description: mesaNombre ? `${mesaNombre} realizó un pedido` : 'Se registró un nuevo pedido',
             action: (
               <button
                 onClick={() => navigate('/admin/pedidos')}
@@ -72,7 +72,7 @@ export default function NewOrderListener() {
           // (opcional) notificación nativa si tienes permiso
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification('Nuevo pedido', {
-              body: mesaNombre ? `Mesa ${mesaNombre}` : 'Pedido recibido',
+              body: mesaNombre ? `${mesaNombre}` : 'Pedido recibido',
               icon: '/assets/logo-notif.png',
               badge: '/assets/logo-notif.png',
             });
