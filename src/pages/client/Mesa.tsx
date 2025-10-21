@@ -14,9 +14,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 // fondos / branding
-import adminBg from '/assets/movil-bg.png';
-import adminBgDesktop from '/assets/admin-bg.png';
-import logo from '/assets/logo-admin.png';
+import adminBg from '/assets/movil-bg-diademuertos.png'; // Cambiar a la imagen deseada de fondo móvil
+import adminBgDesktop from '/assets/admin-bg-diademuertos.png'; // Cambiar a la imagen deseada de fondo desktop
+import logo from '/assets/logo-admin-diademuertos.png'; // Cambiar logo si se desea
 
 interface Mesa {
   id: string;
@@ -337,11 +337,11 @@ const ClientMesa = () => {
     return (
       <div className="relative flex items-stretch gap-3 py-3 border-b">
         <div className="flex-1 min-w-0 pr-2">
-          <div className="font-semibold text-[15px] leading-snug line-clamp-1">
+          <div className="font-semibold text-[15px] leading-snug line-clamp-3">
             {item.nombre}
           </div>
           {(item.description || item.categoria) && (
-            <div className="text-[12px] text-muted-foreground line-clamp-2">
+            <div className="text-[13px] text-muted-foreground line-clamp-6">
               {item.description || item.categoria}
             </div>
           )}

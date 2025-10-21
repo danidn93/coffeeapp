@@ -3,7 +3,7 @@ import { Outlet, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Bell, Clock, LogOut } from 'lucide-react';
-import adminBg from '/assets/admin-bg.png';
+import adminBg from '/assets/admin-bg-diademuertos.png';// Cambiar a la imagen deseada de fondo general
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Switch } from '@/components/ui/switch';
@@ -140,7 +140,7 @@ export default function AdminLayout() {
             <div className="flex items-center gap-3">
               <div className="bg-white rounded-full p-1 shadow-md ring-2 ring-[hsl(24_100%_50%/_0.6)]">
                 <img
-                  src={conf?.logo_url || '/assets/logo-admin.png'}
+                  src={conf?.logo_url || '/assets/logo-admin-diademuertos.png'} // Cambiar logo si se desea
                   alt="Logo"
                   className="h-12 w-12 sm:h-16 sm:w-16 rounded-full select-none object-contain bg-white"
                   draggable={false}

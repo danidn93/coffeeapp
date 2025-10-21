@@ -12,9 +12,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle, Clock, Star } from 'lucide-react';
 
 // fondos / branding (igual a ClientMesa)
-import adminBg from '/assets/movil-bg.png';
-import adminBgDesktop from '/assets/admin-bg.png';
-import logo from '/assets/logo-admin.png';
+import adminBg from '/assets/movil-bg-diademuertos.png'; // Cambiar a la imagen deseada de fondo móvil
+import adminBgDesktop from '/assets/admin-bg-diademuertos.png'; // Cambiar a la imagen deseada de fondo desktop
+import logo from '/assets/logo-admin-diademuertos.png'; // Cambiar logo si se desea
 
 type Pedido = {
   id: string;

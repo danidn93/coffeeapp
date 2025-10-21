@@ -44,7 +44,7 @@ export default function AdminEncuestas() {
 
   // ====== Filtros y estado ======
   const [q, setQ] = useState('');
-  const [minRating, setMinRating] = useState<number>(1);
+  const [maxRating, setMaxRating] = useState<number>(5);            // ← antes minRating=1
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
 
@@ -65,7 +65,14 @@ export default function AdminEncuestas() {
   // ----- helpers de filtro -----
   const applyFilters = useCallback((query: ReturnType<typeof supabase.from> & any) => {
     if (q.trim()) query = query.ilike('comentario', `%${q.trim()}%`);
-    if (minRating > 1) query = query.gte('rating_servicio', minRating).gte('rating_sistema', minRating);
+
+    // Filtro por MÁXIMO rating (ambos campos) → lte
+    if (maxRating < 5) {
+      query = query
+        .lte('rating_servicio', maxRating)
+        .lte('rating_sistema', maxRating);
+    }
+
     if (dateFrom) {
       const fromISO = new Date(`${dateFrom}T00:00:00`).toISOString();
       query = query.gte('created_at', fromISO);
@@ -75,7 +82,7 @@ export default function AdminEncuestas() {
       query = query.lte('created_at', toISO);
     }
     return query;
-  }, [q, minRating, dateFrom, dateTo]);
+  }, [q, maxRating, dateFrom, dateTo]);
 
   // ----- página (con joins a mesas y pedidos para mostrar nombres) -----
   const fetchPage = useCallback(async () => {
@@ -178,7 +185,7 @@ export default function AdminEncuestas() {
 
   const clearFilters = () => {
     setQ('');
-    setMinRating(1);
+    setMaxRating(5);           // ← antes setMinRating(1)
     setDateFrom('');
     setDateTo('');
     setOrderBy('created_at');
@@ -349,9 +356,9 @@ export default function AdminEncuestas() {
                     <Input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} className="bg-white text-slate-900" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Mín. rating (ambos)</Label>
-                    <Select value={String(minRating)} onValueChange={(v) => { setMinRating(Number(v)); setPage(1); }}>
-                      <SelectTrigger className="bg-white text-slate-900"><SelectValue placeholder="1" /></SelectTrigger>
+                    <Label>Máx. rating (ambos)</Label>
+                    <Select value={String(maxRating)} onValueChange={(v) => { setMaxRating(Number(v)); setPage(1); }}>
+                      <SelectTrigger className="bg-white text-slate-900"><SelectValue placeholder="5" /></SelectTrigger>
                       <SelectContent>
                         {[1,2,3,4,5].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
                       </SelectContent>
