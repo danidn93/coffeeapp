@@ -9,9 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Eye, EyeOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
-import adminBgDesktop from '/assets/admin-bg.png';
-import adminBgMobile from '/assets/movil-bg.png';
-import logo from '/assets/logo-admin.png';
+import adminBgDesktop from '/assets/admin-bg-diademuertos.png'; //Cambiar a la imagen deseada
+import adminBgMobile from '/assets/movil-bg-diademuertos.png'; //Cambiar a la imagen deseada
+import logo from '/assets/logo-admin-diademuertos.png'; //Cambiar al logo deseado
 
 const AdminLogin = () => {
   const { user, login } = useAuth(); // <- usar user
