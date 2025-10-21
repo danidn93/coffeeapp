@@ -544,7 +544,7 @@ export default function ClientPedidoStatus() {
             Estamos mejorando constantemente gracias a tus comentarios.
           </div>
           <DialogFooter>
-            <Button onClick={goLanding}>Aceptar</Button>
+            <Button onClick={() => setShowSurvey(false)}>Aceptar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
