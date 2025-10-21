@@ -297,7 +297,7 @@ export default function HistorialPedidos() {
                       <Input
                         value={producto}
                         onChange={(e) => setProducto(e.target.value)}
-                        placeholder="Ej: Michelada"
+                        placeholder="Ej: Americano"
                         className="bg-white text-slate-900 placeholder:text-slate-500"
                       />
                     </div>

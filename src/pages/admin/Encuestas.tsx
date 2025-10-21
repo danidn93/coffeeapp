@@ -257,7 +257,7 @@ export default function AdminEncuestas() {
               </Button>
             </Link>
             <h1 className="text-2xl font-aventura tracking-wide text-white">Encuestas</h1>
-            <Badge variant="secondary" className="ml-auto">{badge(total)}</Badge>
+            
           </div>
         </header>
 
@@ -320,12 +320,14 @@ export default function AdminEncuestas() {
                 <Card className="bg-transparent shadow-none border border-slate-200 text-black">
                   <CardHeader>
                     <CardTitle>Con comentario</CardTitle>
-                    <CardDescription className="text-slate-600">y alertas &lt; 3</CardDescription>
+                    <CardDescription className="text-slate-600">y alertas &lt; 4</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-baseline gap-3">
                       <div className="text-2xl font-bold">{kpiLoading ? '—' : withComment}</div>
-                      
+                      <div className="text-sm text-red-600/80">
+                        {kpiLoading ? '' : `Alertas: ${alertsCount}`}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

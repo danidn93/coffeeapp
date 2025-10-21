@@ -251,7 +251,6 @@ const AdminMesas = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-slate-600">Nombre</TableHead>
-                        <TableHead className="text-slate-600">Slug</TableHead>
                         <TableHead className="text-slate-600">Estado</TableHead>
                         <TableHead className="text-slate-600">Creación</TableHead>
                         <TableHead className="text-slate-600">Acciones</TableHead>
@@ -265,7 +264,6 @@ const AdminMesas = () => {
                             <TableCell className="font-medium text-slate-900">
                               {mesa.nombre}
                             </TableCell>
-                            <TableCell className="text-slate-800">{mesa.slug}</TableCell>
 
                             {/* Columna Estado con Switch */}
                             <TableCell>
@@ -274,6 +272,7 @@ const AdminMesas = () => {
                                   checked={mesa.activa}
                                   onCheckedChange={(val) => toggleActiva(mesa, Boolean(val))}
                                   aria-label={`Cambiar estado de ${mesa.nombre}`}
+                                  className="data-[state=checked]:bg-orange-600 data-[state=unchecked]:bg-slate-300"
                                 />
                                 <span
                                   className={`px-2 py-1 rounded-full text-xs ${
