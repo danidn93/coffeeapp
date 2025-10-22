@@ -145,7 +145,7 @@ export default function ClientPedidoStatus() {
   const [sendingSurvey, setSendingSurvey] = useState(false);
   const [showThanks, setShowThanks] = useState(false);
 
-  // comentario obligatorio si alguna calificación < 3
+  // comentario obligatorio si alguna calificación <= 3
   const needsComment = useMemo(
     () => ratingServicio < 4 || ratingSistema < 4,
     [ratingServicio, ratingSistema]
@@ -265,28 +265,18 @@ export default function ClientPedidoStatus() {
     prevPasoRef.current = curPaso;
   }, [pedido?.estado, itemNames]);
 
-  // Cerrar encuesta -> mostrar gracias y redirigir
-  const goLanding = () => navigate(token ? `/landing?t=${token}` : '/landing', { replace: true });
-
+  // Al cerrar la encuesta, solo mostramos "Gracias" (NO redirigir)
   const handleSurveyOpenChange = (open: boolean) => {
     setShowSurvey(open);
     if (!open) {
-      // si cierra sin enviar, igual mostramos gracias y redirigimos
       setShowThanks(true);
     }
   };
 
-  useEffect(() => {
-    if (showThanks) {
-      const t = setTimeout(() => goLanding(), 1600);
-      return () => clearTimeout(t);
-    }
-  }, [showThanks]);
-
   const submitSurvey = async () => {
     if (!pedido) return;
 
-    // Validación: comentario obligatorio si alguna calificación < 3
+    // Validación: comentario obligatorio si alguna calificación <= 3
     if (needsComment && !comentario.trim()) {
       toast({
         title: 'Falta tu comentario',
@@ -308,7 +298,7 @@ export default function ClientPedidoStatus() {
       });
       if (error) throw error;
       setShowSurvey(false);
-      setShowThanks(true); // modal de agradecimiento y luego redirect
+      setShowThanks(true); // modal de agradecimiento (NO redirigir)
     } catch (e: any) {
       toast({ title: 'Error', description: e?.message || 'No se pudo enviar la encuesta', variant: 'destructive' });
     } finally {
@@ -534,8 +524,13 @@ export default function ClientPedidoStatus() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de agradecimiento + redirección */}
-      <Dialog open={showThanks} onOpenChange={(o) => { setShowThanks(o); if (!o) { /* si lo cierran manual */ goLanding(); } }}>
+      {/* Modal de agradecimiento (NO redirige) */}
+      <Dialog
+        open={showThanks}
+        onOpenChange={(o) => {
+          setShowThanks(o); // solo abrir/cerrar el modal, sin navegación
+        }}
+      >
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
             <DialogTitle>¡Gracias por tu opinión! ✨</DialogTitle>
@@ -544,7 +539,7 @@ export default function ClientPedidoStatus() {
             Estamos mejorando constantemente gracias a tus comentarios.
           </div>
           <DialogFooter>
-            <Button onClick={() => setShowSurvey(false)}>Aceptar</Button>
+            <Button onClick={() => setShowThanks(false)}>Aceptar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
