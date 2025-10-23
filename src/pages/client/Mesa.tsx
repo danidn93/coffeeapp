@@ -1,6 +1,6 @@
 // src/pages/ClientMesa.tsx
 import { useState, useEffect } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,15 +8,15 @@ import { ShoppingCart, Package } from 'lucide-react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea'; // Asegúrate de tener este componente (o usa <textarea> nativo)
+import { Textarea } from '@/components/ui/textarea';
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 // fondos / branding
-import adminBg from '/assets/movil-bg-diademuertos.png'; // Cambiar a la imagen deseada de fondo móvil
-import adminBgDesktop from '/assets/admin-bg-diademuertos.png'; // Cambiar a la imagen deseada de fondo desktop
-import logo from '/assets/logo-admin-diademuertos.png'; // Cambiar logo si se desea
+import adminBg from '/assets/movil-bg-diademuertos.png';
+import adminBgDesktop from '/assets/admin-bg-diademuertos.png';
+import logo from '/assets/logo-admin-diademuertos.png';
 
 interface Mesa {
   id: string;
@@ -48,7 +48,7 @@ interface CartItem {
 const ClientMesa = () => {
   const { slug } = useParams();
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('t');
+  const token = searchParams.get('t') || '';
 
   const [mesa, setMesa] = useState<Mesa | null>(null);
   const [items, setItems] = useState<Item[]>([]);
@@ -60,13 +60,24 @@ const ClientMesa = () => {
   // Modal: nombre + notas del pedido
   const [showNameModal, setShowNameModal] = useState(false);
   const [customerName, setCustomerName] = useState('');
-  const [orderNotes, setOrderNotes] = useState(''); // 👈 notas generales del pedido
+  const [orderNotes, setOrderNotes] = useState('');
   const [pendingCreate, setPendingCreate] = useState(false);
 
   // Buscador productos
   const [qProductos, setQProductos] = useState('');
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // === Guardar SIEMPRE la URL del QR para "volver a la carta" ===
+  useEffect(() => {
+    try {
+      // Solo guardamos si tiene token válido (evita pisar con rutas internas)
+      if (token && slug) {
+        sessionStorage.setItem('qr:return', window.location.href);
+      }
+    } catch {}
+  }, [slug, token]);
 
   // === Fondo responsivo (móvil vs desktop) ===
   const [bgUrl, setBgUrl] = useState<string>(adminBg);
@@ -123,7 +134,6 @@ const ClientMesa = () => {
         // 3) Items
         await fetchItems();
       } catch {
-        // En caso de error silencioso, manda a landing con error genérico
         navigate('/landing?alert=sala-inactiva', { replace: true });
       }
     })();
@@ -142,9 +152,7 @@ const ClientMesa = () => {
         .eq('activa', true)
         .maybeSingle();
 
-      if (error || !data) {
-        return false; // fuerza redirección
-      }
+      if (error || !data) return false;
       setMesa(data as Mesa);
       return true;
     } catch {
@@ -160,7 +168,7 @@ const ClientMesa = () => {
         .eq('disponible', true)
         .order('tipo', { ascending: true });
 
-    if (error) throw error;
+      if (error) throw error;
       setItems((data as Item[]) || []);
     } catch (error) {
       toast({ title: 'Error', description: 'No se pudieron cargar los items', variant: 'destructive' });
@@ -177,7 +185,6 @@ const ClientMesa = () => {
       }
       return [...prev, { item, cantidad: 1 }];
     });
-
   };
 
   const removeFromCart = (itemId: string) => {
@@ -199,7 +206,7 @@ const ClientMesa = () => {
     if (!mesa || cart.length === 0 || isCreating) return;
     setPendingCreate(true);
     setCustomerName('');
-    setOrderNotes(''); // limpia notas anteriores
+    setOrderNotes('');
     setShowNameModal(true);
   };
 
@@ -223,7 +230,6 @@ const ClientMesa = () => {
     try {
       const productItems = cart.filter(ci => ci.item.tipo === 'producto');
       const songItems = cart.filter(ci => ci.item.tipo === 'cancion');
-
       const tipo = mapTipoPedido(productItems.length > 0, songItems.length > 0);
 
       // INSERT en pedidos con notas generales
@@ -233,14 +239,12 @@ const ClientMesa = () => {
           mesa_id: mesa.id,
           tipo,
           name_user,
-          notas: notas?.trim() ? notas.trim() : null, // 👈 guarda en columna `notas`
+          notas: notas?.trim() ? notas.trim() : null,
         })
         .select()
         .single();
 
       if (pedidoError) throw pedidoError;
-      
-      navigate(`/pedido/${pedido.id}?t=${token}`, { replace: true });
 
       const allItems = [...productItems, ...songItems];
       const pedidoItems = allItems.map(ci => ({
@@ -255,9 +259,16 @@ const ClientMesa = () => {
         if (itemsError) throw itemsError;
       }
 
+      // Navegación al estado del pedido:
+      // - mantenemos el token
+      // - pasamos returnTo para "volver a la carta"
+      navigate(`/pedido/${(pedido as any).id}?t=${token}`, {
+        replace: true,
+        state: { returnTo: location.pathname + location.search },
+      });
+
       setCart([]);
       setOrderNotes('');
-
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -380,7 +391,6 @@ const ClientMesa = () => {
   }
 
   if (!mesa) {
-    // si llegas aquí es porque hubo navegación temprana; mostramos un fallback simple
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="w-full max-w-md">
@@ -498,7 +508,6 @@ const ClientMesa = () => {
 
             <div className="space-y-2">
               <Label htmlFor="order_notes">Notas (opcional)</Label>
-              {/* Usa tu Textarea de shadcn/ui o reemplaza por <textarea className="..." /> */}
               <Textarea
                 id="order_notes"
                 value={orderNotes}

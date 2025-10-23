@@ -1,5 +1,6 @@
+// src/pages/ClientPedidoStatus.tsx
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,10 +12,10 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle, Clock, Star } from 'lucide-react';
 
-// fondos / branding (igual a ClientMesa)
-import adminBg from '/assets/movil-bg-diademuertos.png'; // Cambiar a la imagen deseada de fondo móvil
-import adminBgDesktop from '/assets/admin-bg-diademuertos.png'; // Cambiar a la imagen deseada de fondo desktop
-import logo from '/assets/logo-admin-diademuertos.png'; // Cambiar logo si se desea
+// fondos / branding
+import adminBg from '/assets/movil-bg-diademuertos.png';
+import adminBgDesktop from '/assets/admin-bg-diademuertos.png';
+import logo from '/assets/logo-admin-diademuertos.png';
 
 type Pedido = {
   id: string;
@@ -111,9 +112,10 @@ export default function ClientPedidoStatus() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const token = searchParams.get('t') || '';
 
-  // fondo responsivo como en ClientMesa
+  // fondo responsivo
   const [bgUrl, setBgUrl] = useState<string>(adminBg);
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');
@@ -145,7 +147,6 @@ export default function ClientPedidoStatus() {
   const [sendingSurvey, setSendingSurvey] = useState(false);
   const [showThanks, setShowThanks] = useState(false);
 
-  // comentario obligatorio si alguna calificación <= 3
   const needsComment = useMemo(
     () => ratingServicio < 4 || ratingSistema < 4,
     [ratingServicio, ratingSistema]
@@ -158,7 +159,7 @@ export default function ClientPedidoStatus() {
   const firstImage =
     useMemo(() => items.find((r) => r.items?.image_url)?.items?.image_url, [items]) || logo;
 
-  // Carga + validar token (sin tocar BD)
+  // Carga + validar token
   useEffect(() => {
     let cancelled = false;
     if (!id || !token) {
@@ -191,7 +192,7 @@ export default function ClientPedidoStatus() {
 
         setPedido(p as Pedido);
 
-        // 3) items (pedimos image_url para la imagen de "Listo")
+        // 3) items
         const { data: pi, error: pie } = await supabase
           .from('pedido_items')
           .select('id, pedido_id, item_id, cantidad, nota, items(id, nombre, image_url)')
@@ -239,24 +240,20 @@ export default function ClientPedidoStatus() {
     };
   }, [id, token, navigate]);
 
-  // Notificación (toast) + abrir encuesta cuando pase a "listo"
+  // Notificación + abrir encuesta cuando pase a "listo"
   const prevPasoRef = useRef<number>(0);
   useEffect(() => {
     const curPaso = pasoEstado(pedido?.estado);
     const prevPaso = prevPasoRef.current;
 
     if (prevPaso < 2 && curPaso === 2) {
-      // Solo notificación visual, sin audio
       const texto = (() => {
         const names = itemNames;
         if (!names.length) return 'Tu pedido está listo.';
         return names.length === 1 ? `Tu ${names[0]} está listo.` : `Tus ${names.join(', ')} están listos.`;
       })();
 
-      toast({
-        title: '¡Listo! 🎉',
-        description: texto,
-      });
+      toast({ title: '¡Listo! 🎉', description: texto });
 
       const t = setTimeout(() => setShowSurvey(true), 5000);
       prevPasoRef.current = curPaso;
@@ -265,18 +262,14 @@ export default function ClientPedidoStatus() {
     prevPasoRef.current = curPaso;
   }, [pedido?.estado, itemNames]);
 
-  // Al cerrar la encuesta, solo mostramos "Gracias" (NO redirigir)
   const handleSurveyOpenChange = (open: boolean) => {
     setShowSurvey(open);
-    if (!open) {
-      setShowThanks(true);
-    }
+    if (!open) setShowThanks(true);
   };
 
   const submitSurvey = async () => {
     if (!pedido) return;
 
-    // Validación: comentario obligatorio si alguna calificación <= 3
     if (needsComment && !comentario.trim()) {
       toast({
         title: 'Falta tu comentario',
@@ -298,12 +291,47 @@ export default function ClientPedidoStatus() {
       });
       if (error) throw error;
       setShowSurvey(false);
-      setShowThanks(true); // modal de agradecimiento (NO redirigir)
+      setShowThanks(true);
     } catch (e: any) {
       toast({ title: 'Error', description: e?.message || 'No se pudo enviar la encuesta', variant: 'destructive' });
     } finally {
       setSendingSurvey(false);
     }
+  };
+
+  // ---- LOGICA "VOLVER A LA CARTA" ----
+  const goBack = () => {
+    // 1) Si hay historial util, retroceder
+    if (window.history.length > 2) {
+      navigate(-1);
+      return;
+    }
+
+    // 2) Si venimos con state.returnTo desde ClientMesa, úsalo
+    const state = location.state as { returnTo?: string } | null;
+    const returnTo = state?.returnTo;
+    if (returnTo) {
+      navigate(returnTo, { replace: true });
+      return;
+    }
+
+    // 3) Respaldo: URL guardada al escanear el QR
+    let stored = '';
+    try { stored = sessionStorage.getItem('qr:return') || ''; } catch {}
+
+    if (stored) {
+      const sameOrigin = stored.startsWith(window.location.origin);
+      if (sameOrigin) {
+        const path = stored.replace(window.location.origin, '');
+        navigate(path, { replace: true });
+      } else {
+        window.location.assign(stored);
+      }
+      return;
+    }
+
+    // 4) Último fallback: landing con token
+    navigate(token ? `/landing?t=${token}` : '/landing', { replace: true });
   };
 
   // ──────────────── UI ─────────────────
@@ -328,9 +356,7 @@ export default function ClientPedidoStatus() {
             <CardDescription>Verifica el enlace o regresa a la mesa.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild>
-              <Link to={token ? `/landing?t=${token}` : '/landing'}>Regresar</Link>
-            </Button>
+            <Button size="sm" onClick={goBack}>Volver a la carta</Button>
           </CardContent>
         </Card>
       </div>
@@ -374,8 +400,8 @@ export default function ClientPedidoStatus() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button asChild size="sm" variant="ghost">
-              <Link to={token ? `/landing?t=${token}` : '/landing'}>Volver a la carta</Link>
+            <Button size="sm" variant="ghost" onClick={goBack}>
+              Volver a la carta
             </Button>
           </div>
         </div>
@@ -384,7 +410,7 @@ export default function ClientPedidoStatus() {
       {/* Contenido */}
       <main className="container mx-auto px-4 py-6">
         <div className="grid gap-8">
-          {/* Progreso (una sola barra dividida 25% / 50% / 25%) */}
+          {/* Progreso */}
           <section className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="px-4 pt-4 pb-2">
               <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Progreso</div>
@@ -397,18 +423,9 @@ export default function ClientPedidoStatus() {
               </div>
 
               <div className="flex gap-2 items-center">
-                {/* 25% */}
-                <div className="flex-[1]">
-                  <Segment filled={paso > 0} current={paso === 0} />
-                </div>
-                {/* 50% */}
-                <div className="flex-[2]">
-                  <Segment filled={paso > 1} current={paso === 1} />
-                </div>
-                {/* 25% */}
-                <div className="flex-[1]">
-                  <Segment filled={paso > 2} current={paso === 2} />
-                </div>
+                <div className="flex-[1]"><Segment filled={paso > 0} current={paso === 0} /></div>
+                <div className="flex-[2]"><Segment filled={paso > 1} current={paso === 1} /></div>
+                <div className="flex-[1]"><Segment filled={paso > 2} current={paso === 2} /></div>
               </div>
 
               <div className="flex items-center gap-3 mt-3">
@@ -446,7 +463,7 @@ export default function ClientPedidoStatus() {
                 )}
               </ul>
 
-              {/* BLOQUE LISTO con imagen + mensaje */}
+              {/* BLOQUE LISTO */}
               {paso === 2 && (
                 <div className="mt-4">
                   <div className="rounded-xl overflow-hidden bg-black/5 aspect-[16/9] mb-3">
@@ -514,23 +531,15 @@ export default function ClientPedidoStatus() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowSurvey(false)}>Cerrar</Button>
-            <Button
-              onClick={submitSurvey}
-              disabled={sendingSurvey || (needsComment && !comentario.trim())}
-            >
+            <Button onClick={submitSurvey} disabled={sendingSurvey || (needsComment && !comentario.trim())}>
               {sendingSurvey ? 'Enviando…' : 'Enviar'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modal de agradecimiento (NO redirige) */}
-      <Dialog
-        open={showThanks}
-        onOpenChange={(o) => {
-          setShowThanks(o); // solo abrir/cerrar el modal, sin navegación
-        }}
-      >
+      {/* Modal de agradecimiento */}
+      <Dialog open={showThanks} onOpenChange={(o) => setShowThanks(o)}>
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
             <DialogTitle>¡Gracias por tu opinión! ✨</DialogTitle>
