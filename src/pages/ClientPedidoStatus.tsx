@@ -159,6 +159,37 @@ export default function ClientPedidoStatus() {
   const firstImage =
     useMemo(() => items.find((r) => r.items?.image_url)?.items?.image_url, [items]) || logo;
 
+  // ---- LOGICA "VOLVER A LA CARTA" ----
+  const goBack = () => {
+    // 1) Si hay historial útil, retroceder
+    if (window.history.length > 2) {
+      navigate(-1);
+      return;
+    }
+    // 2) Si venimos con state.returnTo desde ClientMesa, úsalo
+    const state = location.state as { returnTo?: string } | null;
+    const returnTo = state?.returnTo;
+    if (returnTo) {
+      navigate(returnTo, { replace: true });
+      return;
+    }
+    // 3) Respaldo: URL guardada al escanear el QR
+    let stored = '';
+    try { stored = sessionStorage.getItem('qr:return') || ''; } catch {}
+    if (stored) {
+      const sameOrigin = stored.startsWith(window.location.origin);
+      if (sameOrigin) {
+        const path = stored.replace(window.location.origin, '');
+        navigate(path, { replace: true });
+      } else {
+        window.location.assign(stored);
+      }
+      return;
+    }
+    // 4) Último fallback: landing con token
+    navigate(token ? `/landing?t=${token}` : '/landing', { replace: true });
+  };
+
   // Carga + validar token
   useEffect(() => {
     let cancelled = false;
@@ -299,40 +330,8 @@ export default function ClientPedidoStatus() {
     }
   };
 
-  // ---- LOGICA "VOLVER A LA CARTA" ----
-  const goBack = () => {
-    // 1) Si hay historial util, retroceder
-    if (window.history.length > 2) {
-      navigate(-1);
-      return;
-    }
-
-    // 2) Si venimos con state.returnTo desde ClientMesa, úsalo
-    const state = location.state as { returnTo?: string } | null;
-    const returnTo = state?.returnTo;
-    if (returnTo) {
-      navigate(returnTo, { replace: true });
-      return;
-    }
-
-    // 3) Respaldo: URL guardada al escanear el QR
-    let stored = '';
-    try { stored = sessionStorage.getItem('qr:return') || ''; } catch {}
-
-    if (stored) {
-      const sameOrigin = stored.startsWith(window.location.origin);
-      if (sameOrigin) {
-        const path = stored.replace(window.location.origin, '');
-        navigate(path, { replace: true });
-      } else {
-        window.location.assign(stored);
-      }
-      return;
-    }
-
-    // 4) Último fallback: landing con token
-    navigate(token ? `/landing?t=${token}` : '/landing', { replace: true });
-  };
+  // paso calculado para condicionar el botón
+  const paso = useMemo(() => pasoEstado(pedido?.estado), [pedido?.estado]);
 
   // ──────────────── UI ─────────────────
 
@@ -362,8 +361,6 @@ export default function ClientPedidoStatus() {
       </div>
     );
   }
-
-  const paso = pasoEstado(pedido?.estado);
 
   return (
     <div className="relative min-h-screen">
@@ -400,9 +397,11 @@ export default function ClientPedidoStatus() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="ghost" onClick={goBack}>
-              Volver a la carta
-            </Button>
+            {paso === 2 && (
+              <Button size="sm" variant="ghost" onClick={goBack}>
+                Volver a la carta
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -463,7 +462,7 @@ export default function ClientPedidoStatus() {
                 )}
               </ul>
 
-              {/* BLOQUE LISTO */}
+              {/* BLOQUE LISTO con botón adicional cerca del contenido */}
               {paso === 2 && (
                 <div className="mt-4">
                   <div className="rounded-xl overflow-hidden bg-black/5 aspect-[16/9] mb-3">
@@ -480,6 +479,10 @@ export default function ClientPedidoStatus() {
                         return <>Disfruta tu {texto}.</>;
                       })()}
                     </div>
+
+                    <div className="mt-3">
+                      <Button onClick={goBack}>Volver a la carta</Button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -495,7 +498,7 @@ export default function ClientPedidoStatus() {
             <DialogTitle>¿Cómo estuvo el servicio?</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-5">
+        <div className="space-y-5">
             <div className="space-y-2">
               <Label>Califica el servicio</Label>
               <StarRating value={ratingServicio} onChange={setRatingServicio} ariaLabel="Calificación servicio" />

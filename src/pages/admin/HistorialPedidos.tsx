@@ -21,7 +21,7 @@ type ItemRow = { id: string; nombre: string };
 type PedidoItemRow = {
   cantidad: number;
   nota?: string | null;
-  item_id?: string | null; // por si existe; útil para filtro por producto
+  item_id?: string | null;
   items: { nombre: string; tipo: 'producto' | 'cancion' };
 };
 
@@ -33,6 +33,7 @@ type PedidoRow = {
   created_at: string;
   name_user: string | null;
   pedido_items: PedidoItemRow[];
+  notas?: string | null; // ← permitir null/ausente
 };
 
 const PAGE_SIZE = 20;
@@ -44,7 +45,7 @@ export default function HistorialPedidos() {
   const [producto, setProducto] = useState('');
   const [dateFrom, setDateFrom] = useState<string>(() => {
     const d = new Date();
-    d.setDate(d.getDate() - 7); // últimos 7 días por defecto
+    d.setDate(d.getDate() - 7);
     return d.toISOString().slice(0, 10);
   });
   const [dateTo, setDateTo] = useState<string>(() => new Date().toISOString().slice(0, 10));
@@ -88,7 +89,6 @@ export default function HistorialPedidos() {
   const fetchHistorial = async (opts?: { reset?: boolean }) => {
     setLoading(true);
     try {
-      // Si pide reset, volvemos a la página 1
       const currentPage = opts?.reset ? 1 : page;
       const from = (currentPage - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
@@ -96,7 +96,6 @@ export default function HistorialPedidos() {
       // 1) si hay filtro por producto, resolvemos qué pedidos lo contienen
       let pedidoIdsByProduct: string[] | null = null;
       if (producto.trim()) {
-        // buscar items que matcheen por nombre
         const { data: itemsData, error: itemsErr } = await supabase
           .from('items')
           .select('id, nombre')
@@ -105,7 +104,6 @@ export default function HistorialPedidos() {
 
         const itemIds = ((itemsData ?? []) as ItemRow[]).map((it) => it.id);
         if (itemIds.length > 0) {
-          // buscar pedido_items con esos item_id
           const { data: piData, error: piErr } = await supabase
             .from('pedido_items')
             .select('pedido_id, item_id')
@@ -113,7 +111,7 @@ export default function HistorialPedidos() {
           if (piErr) throw piErr;
 
           const ids = Array.from(new Set((piData ?? []).map((r: any) => r.pedido_id)));
-          pedidoIdsByProduct = ids.length ? ids : ['__none__']; // si no hay, forzamos vacío
+          pedidoIdsByProduct = ids.length ? ids : ['__none__'];
         } else {
           pedidoIdsByProduct = ['__none__'];
         }
@@ -130,6 +128,7 @@ export default function HistorialPedidos() {
           estado,
           created_at,
           name_user,
+          notas,
           pedido_items (
             cantidad,
             nota,
@@ -155,7 +154,7 @@ export default function HistorialPedidos() {
 
       const list = (data as PedidoRow[]) ?? [];
 
-      // 3) si no hubo filtro por producto (server-side), aún permitimos filtrar por texto del item (seguro)
+      // 3) filtro seguro por texto del item (si no hicimos filtro por producto server-side)
       let filtered = list;
       if (!pedidoIdsByProduct && producto.trim()) {
         const q = producto.trim().toLowerCase();
@@ -165,7 +164,6 @@ export default function HistorialPedidos() {
       }
 
       setRows(filtered);
-      // ¿hay más páginas?
       const total = typeof count === 'number' ? count : filtered.length;
       setHasMore(from + filtered.length < total);
       if (opts?.reset) setPage(1);
@@ -183,7 +181,6 @@ export default function HistorialPedidos() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFrom, dateTo, salaId]);
 
-  // acciones
   const onBuscar = async () => {
     await fetchHistorial({ reset: true });
   };
@@ -209,7 +206,6 @@ export default function HistorialPedidos() {
     setPage((p) => p + 1);
   };
 
-  // recargar al cambiar page manualmente
   useEffect(() => {
     fetchHistorial();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -231,7 +227,7 @@ export default function HistorialPedidos() {
           </div>
         </header>
 
-        {/* 🔲 Contenedor blanco para filtros + resultados */}
+        {/* Contenido */}
         <main className="container mx-auto px-4 py-8">
           <div className="rounded-xl border bg-white text-slate-800 shadow-sm">
             <div className="p-6 grid gap-6">
@@ -349,7 +345,16 @@ export default function HistorialPedidos() {
                                   </>
                                 )}
                               </CardDescription>
+
+                              {/* Notas del pedido (si hay) */}
+                              {p.notas && (
+                                <div className="mt-1 text-sm text-slate-700">
+                                  <span className="font-medium text-slate-900">Notas: </span>
+                                  <span className="whitespace-pre-wrap break-words">{p.notas}</span>
+                                </div>
+                              )}
                             </div>
+
                             <div className="flex items-center gap-2">
                               <Badge
                                 className={
@@ -398,20 +403,12 @@ export default function HistorialPedidos() {
                   })}
 
                   {/* Paginación */}
-                  <div className="flex items-center justify-between mt-2">
-                    <Button
-                      variant="outline"
-                      onClick={prevPage}
-                      disabled={page <= 1 || loading}
-                    >
+                  <div className="text-orange flex items-center justify-between mt-2">
+                    <Button variant="outline" onClick={prevPage} disabled={page <= 1 || loading}>
                       Anterior
                     </Button>
                     <span className="text-slate-700">Página {page}</span>
-                    <Button
-                      variant="outline"
-                      onClick={nextPage}
-                      disabled={!hasMore || loading}
-                    >
+                    <Button variant="outline" onClick={nextPage} disabled={!hasMore || loading}>
                       Siguiente
                     </Button>
                   </div>
