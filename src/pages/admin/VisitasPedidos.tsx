@@ -16,20 +16,29 @@ type Pedido = { id: string; created_at: string; name_user: string | null; notas:
 type Item = {
   id: string;
   pedido_id: string;
-  categoria: string;            // 🔓 dinámico para soportar nuevas etiquetas (p. ej. “Bebidas Desayuno”)
+  categoria: string;            // dinámico para soportar nuevas etiquetas
   item_nombre: string | null;
   nota: string | null;
 };
 
+// Helpers para ISO local YYYY-MM-DD sin desfase de zona
+function toLocalISO(d: Date) {
+  const dt = new Date(d);
+  dt.setHours(12, 0, 0, 0);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+function plusDaysLocalISO(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return toLocalISO(d);
+}
+
 export default function PedidosVisitas() {
-  const [fecha, setFecha] = useState<string>(() => {
-    const d = new Date();
-    // ISO local YYYY-MM-DD (evita TZ)
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  });
+  // 🔁 Default: “mañana”
+  const [fecha, setFecha] = useState<string>(() => plusDaysLocalISO(1));
 
   const [loading, setLoading] = useState(true);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -195,7 +204,6 @@ export default function PedidosVisitas() {
             ) : (
               sortedBadges.map(([cat, n]) => {
                 const lc = cat.toLowerCase();
-                // Colores por familia (opcional)
                 const cls =
                   lc.includes('desayuno') ? 'bg-emerald-600' :
                   lc.includes('almuerzo') ? 'bg-sky-600' :
