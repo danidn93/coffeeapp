@@ -242,47 +242,53 @@ export default function AdminDashboard() {
               </Card>
             </Link>
 
-            {/* VISITAS — Pedidos hoy */}
-            <Link to="/admin/visitas/pedidos">
-              <Card className="dashboard-card cursor-pointer ring-2 ring-primary/50">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="card-title">Visitas hoy</CardTitle>
-                  <ShoppingCart className="h-4 w-4 opacity-80" />
-                </CardHeader>
-                <CardContent className="card-inner">
-                  <div className="text-2xl font-bold">{loading ? '—' : visitasHoyCount}</div>
-                  <CardDescription className="card-subtitle">Pedidos del menú de visitas (hoy)</CardDescription>
-                </CardContent>
-              </Card>
-            </Link>
+            {/* VISITAS — Pedidos hoy (SOLO ADMIN) */}
+            {isAdmin && (
+              <Link to="/admin/visitas/pedidos">
+                <Card className="dashboard-card cursor-pointer ring-2 ring-primary/50">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="card-title">Visitas hoy</CardTitle>
+                    <ShoppingCart className="h-4 w-4 opacity-80" />
+                  </CardHeader>
+                  <CardContent className="card-inner">
+                    <div className="text-2xl font-bold">{loading ? '—' : visitasHoyCount}</div>
+                    <CardDescription className="card-subtitle">Pedidos del menú de visitas (hoy)</CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+            )}
 
-            {/* VISITAS — Menú por día */}
-            <Link to="/admin/visitas/menu">
-              <Card className="dashboard-card cursor-pointer">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="card-title">Menú visitas (por día)</CardTitle>
-                  <CalendarDays className="h-4 w-4 opacity-80" />
-                </CardHeader>
-                <CardContent className="card-inner">
-                  <div className="text-xl font-semibold">Configurar categorías y orden</div>
-                  <CardDescription className="card-subtitle">Publica el menú para la fecha</CardDescription>
-                </CardContent>
-              </Card>
-            </Link>
+            {/* VISITAS — Menú por día (SOLO ADMIN) */}
+            {isAdmin && (
+              <Link to="/admin/visitas/menu">
+                <Card className="dashboard-card cursor-pointer">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="card-title">Menú visitas (por día)</CardTitle>
+                    <CalendarDays className="h-4 w-4 opacity-80" />
+                  </CardHeader>
+                  <CardContent className="card-inner">
+                    <div className="text-xl font-semibold">Configurar categorías y orden</div>
+                    <CardDescription className="card-subtitle">Publica el menú para la fecha</CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+            )}
 
-            {/* VISITAS — Productos (catálogo independiente) */}
-            <Link to="/admin/visitas/productos">
-              <Card className="dashboard-card cursor-pointer">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="card-title">Productos visitas</CardTitle>
-                  <PackageOpen className="h-4 w-4 opacity-80" />
-                </CardHeader>
-                <CardContent className="card-inner">
-                  <div className="text-xl font-semibold">Con fotos y descripción</div>
-                  <CardDescription className="card-subtitle">Catálogo independiente</CardDescription>
-                </CardContent>
-              </Card>
-            </Link>
+            {/* VISITAS — Productos (catálogo independiente) SOLO ADMIN */}
+            {isAdmin && (
+              <Link to="/admin/visitas/productos">
+                <Card className="dashboard-card cursor-pointer">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="card-title">Productos visitas</CardTitle>
+                    <PackageOpen className="h-4 w-4 opacity-80" />
+                  </CardHeader>
+                  <CardContent className="card-inner">
+                    <div className="text-xl font-semibold">Con fotos y descripción</div>
+                    <CardDescription className="card-subtitle">Catálogo independiente</CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+            )}
 
             {/* Historial */}
             <Link to="/admin/historial">

@@ -1,3 +1,4 @@
+// src/pages/admin/visitas/PedidosVisitas.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,10 +12,11 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 
 type Pedido = { id: string; created_at: string; name_user: string | null; notas: string | null };
+
 type Item = {
   id: string;
   pedido_id: string;
-  categoria: 'desayuno' | 'almuerzo' | 'merienda';
+  categoria: string;            // 🔓 dinámico para soportar nuevas etiquetas (p. ej. “Bebidas Desayuno”)
   item_nombre: string | null;
   nota: string | null;
 };
@@ -132,16 +134,47 @@ export default function PedidosVisitas() {
     );
   }, [pedidos, q, itemsByPedido]);
 
-  // Contadores por categoría (de los pedidos filtrados)
+  // Contadores por categoría (dinámicos, sobre los pedidos filtrados)
   const counters = useMemo(() => {
-    const c = { desayuno: 0, almuerzo: 0, merienda: 0 };
+    const c = new Map<string, number>();
     for (const p of filtered) {
       for (const it of itemsByPedido[p.id] || []) {
-        c[it.categoria] += 1;
+        const key = it.categoria || '—';
+        c.set(key, (c.get(key) || 0) + 1);
       }
     }
     return c;
   }, [filtered, itemsByPedido]);
+
+  // Orden sugerido para badges (si existen)
+  const badgeOrder = [
+    'desayuno',
+    'bebidas desayuno',
+    'almuerzo',
+    'bebidas almuerzo',
+    'merienda',
+    'bebidas merienda',
+  ];
+
+  const sortedBadges = useMemo(() => {
+    const entries = Array.from(counters.entries());
+    return entries.sort((a, b) => {
+      const ai = badgeOrder.indexOf(a[0].toLowerCase());
+      const bi = badgeOrder.indexOf(b[0].toLowerCase());
+      if (ai !== -1 && bi !== -1) return ai - bi;
+      if (ai !== -1) return -1;
+      if (bi !== -1) return 1;
+      // fallback: alfabético
+      return a[0].localeCompare(b[0]);
+    });
+  }, [counters]);
+
+  const pretty = (s: string) =>
+    (s || '—')
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^\w/, (m) => m.toUpperCase());
 
   return (
     <div className="min-h-[60vh]">
@@ -156,10 +189,25 @@ export default function PedidosVisitas() {
           </Link>
           <h1 className="text-2xl font-aventura tracking-wide text-white">Pedidos de visitas</h1>
 
-          <div className="ml-auto flex items-center gap-2">
-            <Badge className="bg-emerald-600 text-white">Desayuno: {counters.desayuno}</Badge>
-            <Badge className="bg-sky-600 text-white">Almuerzo: {counters.almuerzo}</Badge>
-            <Badge className="bg-fuchsia-600 text-white">Merienda: {counters.merienda}</Badge>
+          <div className="ml-auto flex items-center gap-2 flex-wrap">
+            {sortedBadges.length === 0 ? (
+              <Badge className="bg-slate-600 text-white">Sin categorías</Badge>
+            ) : (
+              sortedBadges.map(([cat, n]) => {
+                const lc = cat.toLowerCase();
+                // Colores por familia (opcional)
+                const cls =
+                  lc.includes('desayuno') ? 'bg-emerald-600' :
+                  lc.includes('almuerzo') ? 'bg-sky-600' :
+                  lc.includes('merienda') ? 'bg-fuchsia-600' :
+                  'bg-slate-600';
+                return (
+                  <Badge key={cat} className={`${cls} text-white`}>
+                    {pretty(cat)}: {n}
+                  </Badge>
+                );
+              })
+            )}
           </div>
         </div>
       </header>
@@ -235,7 +283,7 @@ export default function PedidosVisitas() {
                           .sort((a, b) => a.categoria.localeCompare(b.categoria))
                           .map((it) => (
                             <li key={it.id}>
-                              <b className="capitalize">{it.categoria}:</b>{' '}
+                              <b className="capitalize">{pretty(it.categoria)}:</b>{' '}
                               {it.item_nombre || '—'}
                               {it.nota ? (
                                 <span className="text-slate-500"> — {it.nota}</span>

@@ -13,10 +13,25 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, ExternalLink, QrCode, Copy, RefreshCw, Download } from 'lucide-react';
 
-type Categoria = 'desayuno' | 'almuerzo' | 'merienda';
+type Categoria =
+  | 'desayuno' | 'almuerzo' | 'merienda'
+  | 'bebida_desayuno' | 'bebida_almuerzo' | 'bebida_merienda';
+
+const CATS: Categoria[] = [
+  'desayuno', 'almuerzo', 'merienda',
+  'bebida_desayuno', 'bebida_almuerzo', 'bebida_merienda',
+];
+
+const TITLE_MAP: Record<Categoria, string> = {
+  desayuno: 'Desayuno',
+  almuerzo: 'Almuerzo',
+  merienda: 'Merienda',
+  bebida_desayuno: 'Bebida — Desayuno',
+  bebida_almuerzo: 'Bebida — Almuerzo',
+  bebida_merienda: 'Bebida — Merienda',
+};
 
 interface CatalogItem {
   id: string;
@@ -81,12 +96,11 @@ export default function MenuDiaSimple() {
   const qrRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
-    // Render QR de /visitas al final
     if (!qrRef.current) return;
     QRCode.toCanvas(qrRef.current, enlaceFijo, { width: 220 }).catch(() => {});
   }, [enlaceFijo]);
 
-  /** Cargar catálogo (independiente del menú normal) */
+  /** Cargar catálogo */
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -106,7 +120,7 @@ export default function MenuDiaSimple() {
     })();
   }, []);
 
-  /** Cargar menú del día y su selección */
+  /** Cargar menú del día y su selección (ACTUALIZA si existe) */
   useEffect(() => {
     (async () => {
       const { data: d, error } = await supabase
@@ -135,7 +149,7 @@ export default function MenuDiaSimple() {
 
       const { data: di, error: e2 } = await supabase
         .from('menu_visitas_dia_items')
-        .select('*')
+        .select('id,item_id,categoria,disponible')
         .eq('dia_id', (d as any).id);
 
       if (e2) {
@@ -146,7 +160,9 @@ export default function MenuDiaSimple() {
 
       const map: Record<string, SelEntry> = {};
       (di || []).forEach((x: any) => {
-        map[x.item_id] = { checked: Boolean(x.disponible), categoria: (x.categoria || 'desayuno') as Categoria };
+        // normaliza a una de las categorías permitidas
+        const cat = (CATS.includes(x.categoria as Categoria) ? x.categoria : 'desayuno') as Categoria;
+        map[x.item_id] = { checked: Boolean(x.disponible), categoria: cat };
       });
       setSelected(map);
     })();
@@ -163,7 +179,7 @@ export default function MenuDiaSimple() {
   const save = async () => {
     setSaving(true);
     try {
-      // Día
+      // Día (upsert por fecha, pero ACTUALIZA si existe)
       const { data: up, error: e } = await supabase
         .from('menu_visitas_dias')
         .upsert({ fecha, publicado: activo, notas: notas?.trim() || null }, { onConflict: 'fecha' })
@@ -200,7 +216,12 @@ export default function MenuDiaSimple() {
       const insertsPromise = nuevos.length
         ? supabase
             .from('menu_visitas_dia_items')
-            .insert(nuevos.map(item_id => ({ dia_id: diaId, item_id, categoria: selected[item_id].categoria, disponible: true })))
+            .insert(nuevos.map(item_id => ({
+              dia_id: diaId,
+              item_id,
+              categoria: selected[item_id].categoria,
+              disponible: true
+            })))
         : Promise.resolve({ error: null });
 
       // Desactivar los que quedaron desmarcados
@@ -242,7 +263,6 @@ export default function MenuDiaSimple() {
         return;
       }
 
-      // items activos + datos de catálogo (revisa que tengas FK o view para esto; si no, haz dos queries y junta en JS)
       const { data: di, error: e2 } = await supabase
         .from('menu_visitas_dia_items')
         .select('item_id,categoria,disponible,menu_visitas_catalog(id,nombre,image_url)')
@@ -255,7 +275,7 @@ export default function MenuDiaSimple() {
           item_id: r.item_id,
           nombre: r.menu_visitas_catalog?.nombre ?? '—',
           image_url: r.menu_visitas_catalog?.image_url ?? null,
-          categoria: (r.categoria || 'desayuno') as Categoria,
+          categoria: (CATS.includes(r.categoria) ? r.categoria : 'desayuno') as Categoria,
           checked: true,
         })) || [];
 
@@ -330,11 +350,11 @@ export default function MenuDiaSimple() {
     }
   };
 
-  /** Contadores */
+  /** Contadores por categoría */
   const counters = useMemo(() => {
-    const c = { desayuno: 0, almuerzo: 0, merienda: 0 } as Record<Categoria, number>;
+    const c = Object.fromEntries(CATS.map(k => [k, 0])) as Record<Categoria, number>;
     Object.entries(selected).forEach(([, v]) => {
-      if (v.checked) c[v.categoria] += 1;
+      if (v?.checked) c[v.categoria] += 1;
     });
     return c;
   }, [selected]);
@@ -353,10 +373,13 @@ export default function MenuDiaSimple() {
           </Link>
           <h1 className="text-2xl font-aventura tracking-wide text-white">Menú por día (Visitas)</h1>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex flex-wrap items-center gap-2">
             <Badge className="bg-emerald-600 text-white">Desayuno: {counters.desayuno}</Badge>
             <Badge className="bg-sky-600 text-white">Almuerzo: {counters.almuerzo}</Badge>
             <Badge className="bg-fuchsia-600 text-white">Merienda: {counters.merienda}</Badge>
+            <Badge className="bg-emerald-700 text-white">Beb D: {counters.bebida_desayuno}</Badge>
+            <Badge className="bg-sky-700 text-white">Beb A: {counters.bebida_almuerzo}</Badge>
+            <Badge className="bg-fuchsia-700 text-white">Beb M: {counters.bebida_merienda}</Badge>
           </div>
         </div>
       </header>
@@ -367,7 +390,7 @@ export default function MenuDiaSimple() {
           <CardHeader>
             <CardTitle className="text-slate-900">Configuración del día</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+        <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3 items-end">
               <div>
                 <Label htmlFor="fecha" className="text-slate-900 font-semibold">Fecha</Label>
@@ -427,9 +450,9 @@ export default function MenuDiaSimple() {
                         value={selected[it.id]?.categoria ?? 'desayuno'}
                         onChange={e => setCat(it.id, e.target.value as Categoria)}
                       >
-                        <option value="desayuno">Desayuno</option>
-                        <option value="almuerzo">Almuerzo</option>
-                        <option value="merienda">Merienda</option>
+                        {CATS.map(c => (
+                          <option key={c} value={c}>{TITLE_MAP[c]}</option>
+                        ))}
                       </select>
                     </div>
 
@@ -542,7 +565,7 @@ export default function MenuDiaSimple() {
                       />
                       <div>
                         <div className="font-medium text-slate-900">{x.nombre}</div>
-                        <div className="text-xs text-slate-600">Categoría: {x.categoria}</div>
+                        <div className="text-xs text-slate-600">Categoría: {TITLE_MAP[x.categoria]}</div>
                       </div>
                     </div>
                     <div className="sm:col-span-3">
@@ -554,9 +577,9 @@ export default function MenuDiaSimple() {
                           setOrigenItems(prev => prev.map((y, i) => (i === idx ? { ...y, categoria: e.target.value as Categoria } : y)))
                         }
                       >
-                        <option value="desayuno">Desayuno</option>
-                        <option value="almuerzo">Almuerzo</option>
-                        <option value="merienda">Merienda</option>
+                        {CATS.map(c => (
+                          <option key={c} value={c}>{TITLE_MAP[c]}</option>
+                        ))}
                       </select>
                     </div>
                     <div className="sm:col-span-2">

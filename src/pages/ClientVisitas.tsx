@@ -10,10 +10,22 @@ import { Package } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-// ✅ importa el logo desde /public (Vite lo sirve por ruta absoluta)
+// ✅ Logo desde /public
 import visitasLogo from '/assets/visitas-logo.png';
 
-type Categoria = 'desayuno' | 'almuerzo' | 'merienda';
+type Categoria =
+  | 'desayuno' | 'almuerzo' | 'merienda'
+  | 'bebida_desayuno' | 'bebida_almuerzo' | 'bebida_merienda';
+
+const TITLE_MAP: Record<Categoria, string> = {
+  desayuno: 'Desayuno',
+  almuerzo: 'Almuerzo',
+  merienda: 'Merienda',
+  bebida_desayuno: 'Bebida — Desayuno',
+  bebida_almuerzo: 'Bebida — Almuerzo',
+  bebida_merienda: 'Bebida — Merienda',
+};
+
 interface DiaMenu { id:string; fecha:string; publicado:boolean }
 interface CatalogItem { id:string; nombre:string; image_url?:string|null; description?:string|null }
 interface DiaItem { id:string; item_id:string; categoria:Categoria; disponible:boolean; orden:number|null; item?:CatalogItem }
@@ -69,7 +81,11 @@ export default function ClientVisitas(){
         if (e3) throw e3;
         (cats||[]).forEach((c:any)=>{ map[c.id] = c; });
       }
-      const enriched: DiaItem[] = (di||[]).map((x:any)=>({ ...x, item: map[x.item_id] }));
+      const enriched: DiaItem[] = (di||[]).map((x:any)=>({
+        ...x,
+        categoria: (Object.keys(TITLE_MAP) as Categoria[]).includes(x.categoria) ? x.categoria : 'desayuno',
+        item: map[x.item_id]
+      }));
       if (cancel) return;
       setItems(enriched);
     }catch(err:any){
@@ -79,8 +95,11 @@ export default function ClientVisitas(){
   })(); return ()=>{cancel=true}; },[targetDate]);
 
   const byCat = useMemo(()=>{
-    const groups: Record<Categoria, DiaItem[]> = { desayuno:[], almuerzo:[], merienda:[] };
-    for (const it of items){ groups[it.categoria].push(it); }
+    const groups: Record<Categoria, DiaItem[]> = {
+      desayuno:[], almuerzo:[], merienda:[],
+      bebida_desayuno:[], bebida_almuerzo:[], bebida_merienda:[]
+    };
+    for (const it of items){ groups[it.categoria]?.push(it); }
     return groups;
   },[items]);
 
@@ -88,8 +107,10 @@ export default function ClientVisitas(){
 
   const openOrder = ()=>{
     if (!dia) return;
-    if (!selectedByCat.desayuno && !selectedByCat.almuerzo && !selectedByCat.merienda) {
-      toast({ title:'Selecciona al menos una categoría', description:'Elige 1 en desayuno, almuerzo o merienda.' });
+    // Al menos 1 selección entre todas las categorías
+    const any = Object.values(selectedByCat).filter(Boolean).length > 0;
+    if (!any) {
+      toast({ title:'Selecciona al menos una opción', description:'Elige 1 en cualquiera de las categorías.' });
       return;
     }
     setCustomerName(''); setOrderNotes(''); setOpenModal(true);
@@ -100,8 +121,8 @@ export default function ClientVisitas(){
     const name = customerName.trim();
     if (name.length < 2) return toast({ title:'Nombre requerido', description:'Mínimo 2 caracteres.' });
 
-    const picks = (['desayuno','almuerzo','merienda'] as Categoria[])
-      .map(c => selectedByCat[c] ? ({ cat:c as Categoria, it: selectedByCat[c]! }) : null)
+    const picks = (Object.keys(TITLE_MAP) as Categoria[])
+      .map(c => selectedByCat[c] ? ({ cat:c, it: selectedByCat[c]! }) : null)
       .filter(Boolean) as {cat:Categoria; it:DiaItem}[];
     if (picks.length === 0) return;
 
@@ -152,7 +173,7 @@ export default function ClientVisitas(){
 
   const CatBlock = ({ cat, title }:{cat:Categoria; title:string})=>{
     const list = byCat[cat];
-    if (!list || list.length === 0) return null; // 🔥 oculta categorías vacías
+    if (!list || list.length === 0) return null; // oculta categorías vacías
 
     return (
       <section className="rounded-2xl overflow-hidden border border-white/40 bg-white/80 backdrop-blur shadow-sm">
@@ -198,7 +219,7 @@ export default function ClientVisitas(){
         {/* Cabecera sobre el fondo visible */}
         <div className="mb-6 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            {/* ⬇️ NUEVO contenedor blanco para el logo */}
+            {/* Contenedor blanco para el logo */}
             <div className="bg-white/95 rounded-xl p-2 ring-1 ring-white/70 shadow-sm">
               <img src={visitasLogo} alt="Visitas" className="h-10 w-auto" />
             </div>
@@ -213,9 +234,12 @@ export default function ClientVisitas(){
 
         {/* Categorías (solo las que tienen ítems) */}
         <div className="grid gap-6">
-          <CatBlock cat="desayuno" title="Desayuno" />
-          <CatBlock cat="almuerzo" title="Almuerzo" />
-          <CatBlock cat="merienda" title="Merienda" />
+          <CatBlock cat="desayuno" title={TITLE_MAP.desayuno} />
+          <CatBlock cat="bebida_desayuno" title={TITLE_MAP.bebida_desayuno} />
+          <CatBlock cat="almuerzo" title={TITLE_MAP.almuerzo} />
+          <CatBlock cat="bebida_almuerzo" title={TITLE_MAP.bebida_almuerzo} />
+          <CatBlock cat="merienda" title={TITLE_MAP.merienda} />
+          <CatBlock cat="bebida_merienda" title={TITLE_MAP.bebida_merienda} />
         </div>
 
         {/* CTA */}
