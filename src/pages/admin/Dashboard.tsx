@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { History, Star, Coffee, DoorOpen as TableIcon, ShoppingCart } from 'lucide-react';
+import { History, Star, Coffee, DoorOpen as TableIcon, ShoppingCart, CalendarDays, PackageOpen } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const POLL_MS = 3000; // 3s fallback
@@ -21,15 +21,21 @@ export default function AdminDashboard() {
   const [usersCount, setUsersCount] = useState(0);
   const [eventosCount, setEventosCount] = useState(0);
 
+  // Visitas
+  const [visitasHoyCount, setVisitasHoyCount] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const lastVisitasCount = useRef(0);
+
   const inFlightRef = useRef(false);
   const intervalIdRef = useRef<number | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  const { startISO, endISO } = useMemo(() => {
+  const { startISO, endISO, todayISO } = useMemo(() => {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
     const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-    return { startISO: start.toISOString(), endISO: end.toISOString() };
+    const today = now.toISOString().slice(0, 10);
+    return { startISO: start.toISOString(), endISO: end.toISOString(), todayISO: today };
   }, []);
 
   const fetchAll = useCallback(async () => {
@@ -72,9 +78,12 @@ export default function AdminDashboard() {
         .select('id', { count: 'exact', head: true })
         .gte('fecha', new Date().toISOString());
 
+      // VISITAS de HOY (no hay estado; solo total por día)
+      const diaQ = supabase.from('menu_visitas_dias').select('id').eq('fecha', todayISO).maybeSingle();
+
       const [
-        mesasRes, prodRes, pedRes, pagosRes, factRes, mesasPendRes, usersRes, eventosRes
-      ] = await Promise.all([mesasQ, productosQ, pedidosQ, pagosQ, facturasQ, mesasPendQ, usersQ, eventosQ]);
+        mesasRes, prodRes, pedRes, pagosRes, factRes, mesasPendRes, usersRes, eventosRes, diaRes
+      ] = await Promise.all([mesasQ, productosQ, pedidosQ, pagosQ, facturasQ, mesasPendQ, usersQ, eventosQ, diaQ]);
 
       if (eventosRes.error) console.error('[dashboard] eventos error:', eventosRes.error.message);
       setEventosCount(eventosRes.error ? 0 : (eventosRes.count ?? 0));
@@ -92,6 +101,29 @@ export default function AdminDashboard() {
       setPedidosActivos(pedRes.error ? 0 : (pedRes.count ?? 0));
       setUsersCount(usersRes.error ? 0 : (usersRes.count ?? 0));
 
+      // Conteo de pedidos de visitas HOY (no estados)
+      if (!diaRes.error && diaRes.data) {
+        const { count, error: vErr } = await supabase
+          .from('pedidos_visitas')
+          .select('id', { count: 'exact', head: true })
+          .eq('dia_id', (diaRes.data as any).id);
+        if (vErr) {
+          console.error('[dashboard] visitas error:', vErr.message);
+          setVisitasHoyCount(0);
+        } else {
+          const newCount = count ?? 0;
+          // Alerta sonora sólo si admin y si aumentó
+          if (isAdmin && audioRef.current && newCount > lastVisitasCount.current) {
+            try { audioRef.current.currentTime = 0; void audioRef.current.play(); } catch {}
+          }
+          lastVisitasCount.current = newCount;
+          setVisitasHoyCount(newCount);
+        }
+      } else {
+        setVisitasHoyCount(0);
+        lastVisitasCount.current = 0;
+      }
+
       void pagosRes; void factRes; void mesasPendRes;
     } catch (e: any) {
       console.error('[dashboard] fetchAll fatal:', e);
@@ -99,17 +131,35 @@ export default function AdminDashboard() {
       setMesasActivas(0);
       setProductosCount(0);
       setPedidosActivos(0);
+      setVisitasHoyCount(0);
     } finally {
       setLoading(false);
       inFlightRef.current = false;
     }
-  }, [startISO, endISO]);
+  }, [startISO, endISO, todayISO, isAdmin]);
 
   useEffect(() => {
     // Primera carga
     fetchAll();
 
-    // Polling como respaldo
+    // Realtime + polling
+    if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
+    const ch = supabase
+      .channel('dashboard-realtime')
+      // core
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, fetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, fetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mesas' }, fetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_users' }, fetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos' }, fetchAll)
+      // visitas
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'menu_visitas_dias' }, fetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_visitas' }, fetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedido_items_visitas' }, fetchAll)
+      .subscribe();
+
+    channelRef.current = ch;
+
     const startPolling = () => {
       if (intervalIdRef.current !== null) return;
       intervalIdRef.current = window.setInterval(() => {
@@ -117,56 +167,29 @@ export default function AdminDashboard() {
       }, POLL_MS);
     };
     const stopPolling = () => {
-      if (intervalIdRef.current !== null) {
-        clearInterval(intervalIdRef.current);
-        intervalIdRef.current = null;
-      }
+      if (intervalIdRef.current !== null) { clearInterval(intervalIdRef.current); intervalIdRef.current = null; }
     };
 
-    // Realtime inmediato ante INSERT/UPDATE/DELETE relevantes
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
-    const ch = supabase
-      .channel('dashboard-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, fetchAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, fetchAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'mesas' }, fetchAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_users' }, fetchAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos' }, fetchAll)
-      .subscribe(status => {
-        if (status === 'SUBSCRIBED') {
-          // Arranca polling de respaldo solo cuando esté suscrito
-          startPolling();
-        }
-      });
-
-    channelRef.current = ch;
+    startPolling();
 
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        fetchAll(); // refresco inmediato al volver
-        startPolling();
-      } else {
-        stopPolling();
-      }
+      if (document.visibilityState === 'visible') { fetchAll(); startPolling(); }
+      else { stopPolling(); }
     };
     document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
       stopPolling();
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
+      if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
     };
   }, [fetchAll]);
 
   return (
     <ProtectedRoute>
       <div className="min-h-[60vh]">
+        {/* Alerta sonora solo admin */}
+        <audio ref={audioRef} src="/assets/notify.mp3" preload="auto" />
         <main className="container mx-auto px-4 py-8">
           {errMsg && (
             <div className="mb-6 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm">
@@ -189,7 +212,7 @@ export default function AdminDashboard() {
               </Card>
             </Link>
 
-            {/* Productos */}
+            {/* Productos regulares */}
             <Link to="/admin/items">
               <Card className="dashboard-card cursor-pointer">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -205,7 +228,7 @@ export default function AdminDashboard() {
               </Card>
             </Link>
 
-            {/* Pedidos activos */}
+            {/* Pedidos activos (regular) */}
             <Link to="/admin/pedidos">
               <Card className="dashboard-card cursor-pointer">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -215,6 +238,48 @@ export default function AdminDashboard() {
                 <CardContent className="card-inner">
                   <div className="text-2xl font-bold">{loading ? '—' : pedidosActivos}</div>
                   <CardDescription className="card-subtitle">Ver y gestionar pedidos en tiempo real</CardDescription>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* VISITAS — Pedidos hoy */}
+            <Link to="/admin/visitas/pedidos">
+              <Card className="dashboard-card cursor-pointer ring-2 ring-primary/50">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="card-title">Visitas hoy</CardTitle>
+                  <ShoppingCart className="h-4 w-4 opacity-80" />
+                </CardHeader>
+                <CardContent className="card-inner">
+                  <div className="text-2xl font-bold">{loading ? '—' : visitasHoyCount}</div>
+                  <CardDescription className="card-subtitle">Pedidos del menú de visitas (hoy)</CardDescription>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* VISITAS — Menú por día */}
+            <Link to="/admin/visitas/menu">
+              <Card className="dashboard-card cursor-pointer">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="card-title">Menú visitas (por día)</CardTitle>
+                  <CalendarDays className="h-4 w-4 opacity-80" />
+                </CardHeader>
+                <CardContent className="card-inner">
+                  <div className="text-xl font-semibold">Configurar categorías y orden</div>
+                  <CardDescription className="card-subtitle">Publica el menú para la fecha</CardDescription>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* VISITAS — Productos (catálogo independiente) */}
+            <Link to="/admin/visitas/productos">
+              <Card className="dashboard-card cursor-pointer">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="card-title">Productos visitas</CardTitle>
+                  <PackageOpen className="h-4 w-4 opacity-80" />
+                </CardHeader>
+                <CardContent className="card-inner">
+                  <div className="text-xl font-semibold">Con fotos y descripción</div>
+                  <CardDescription className="card-subtitle">Catálogo independiente</CardDescription>
                 </CardContent>
               </Card>
             </Link>

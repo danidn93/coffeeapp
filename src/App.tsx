@@ -1,4 +1,3 @@
-// src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense } from 'react';
 
@@ -21,8 +20,14 @@ import AdminUsuarios from '@/pages/admin/Usuarios';
 import AdminItems from '@/pages/admin/Items';
 import AdminConfiguracion from '@/pages/admin/Configuracion';
 import HistorialPedidos from '@/pages/admin/HistorialPedidos';
-import AdminEncuestas from '@/pages/admin/Encuestas'; // ⬅️ NUEVO
-import AdminOnly from '@/components/AdminOnly';        // ⬅️ NUEVO
+import AdminEncuestas from '@/pages/admin/Encuestas';
+import AdminOnly from '@/components/AdminOnly';
+
+// NUEVAS PÁGINAS VISITAS
+import ClientVisitas from '@/pages/ClientVisitas';
+import VisitasProductos from '@/pages/admin/VisitasProductos';
+import VisitasMenuDia from '@/pages/admin/VisitasMenuDia';
+import VisitasPedidos from '@/pages/admin/VisitasPedidos';
 
 export default function App() {
   return (
@@ -39,6 +44,9 @@ export default function App() {
             <Route path="/terminos" element={<Terminos />} />
             <Route path="/privacidad" element={<Privacidad />} />
 
+            {/* Enlace/QR permanente de visitas */}
+            <Route path="/visitas" element={<ClientVisitas />} />
+
             {/* Admin con layout protegido */}
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
@@ -53,6 +61,32 @@ export default function App() {
                 element={
                   <AdminOnly>
                     <AdminEncuestas />
+                  </AdminOnly>
+                }
+              />
+
+              {/* MÓDULO VISITAS */}
+              <Route
+                path="visitas/productos"
+                element={
+                  <AdminOnly>
+                    <VisitasProductos />
+                  </AdminOnly>
+                }
+              />
+              <Route
+                path="visitas/menu"
+                element={
+                  <AdminOnly>
+                    <VisitasMenuDia />
+                  </AdminOnly>
+                }
+              />
+              <Route
+                path="visitas/pedidos"
+                element={
+                  <AdminOnly>
+                    <VisitasPedidos />
                   </AdminOnly>
                 }
               />
