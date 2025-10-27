@@ -26,9 +26,43 @@ const TITLE_MAP: Record<Categoria, string> = {
   bebida_merienda: 'Bebida — Merienda',
 };
 
+// 🔧 Normalizador robusto: mapea lo que venga de DB a nuestro enum
+const NORMALIZE: Record<string, Categoria> = {
+  // directos
+  desayuno: 'desayuno',
+  almuerzo: 'almuerzo',
+  merienda: 'merienda',
+  bebida_desayuno: 'bebida_desayuno',
+  bebida_almuerzo: 'bebida_almuerzo',
+  bebida_merienda: 'bebida_merienda',
+  // variantes frecuentes desde versiones anteriores
+  'bebidas desayuno': 'bebida_desayuno',
+  'bebidas almuerzo': 'bebida_almuerzo',
+  'bebidas merienda': 'bebida_merienda',
+  'bebida desayuno': 'bebida_desayuno',
+  'bebida almuerzo': 'bebida_almuerzo',
+  'bebida merienda': 'bebida_merienda',
+};
+
+function normalizeCategoria(raw: unknown): Categoria | null {
+  const s = String(raw ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (NORMALIZE[s]) return NORMALIZE[s];
+  // intentos adicionales: reemplazar espacios por guion bajo
+  const sUnderscore = s.replace(/\s+/g, '_');
+  if (NORMALIZE[sUnderscore]) return NORMALIZE[sUnderscore];
+  return null; // desconocida → se ignora sin romper
+}
+
 interface DiaMenu { id:string; fecha:string; publicado:boolean }
 interface CatalogItem { id:string; nombre:string; image_url?:string|null; description?:string|null }
-interface DiaItem { id:string; item_id:string; categoria:Categoria; disponible:boolean; orden:number|null; item?:CatalogItem }
+interface DiaItem {
+  id:string;
+  item_id:string;
+  categoria:Categoria;
+  disponible:boolean;
+  orden:number|null;
+  item?:CatalogItem;
+}
 
 function useQuery(){ return new URLSearchParams(useLocation().search); }
 function resolveDate(q: URLSearchParams){
@@ -60,7 +94,7 @@ export default function ClientVisitas(){
         .from('menu_visitas_dias').select('*')
         .eq('fecha', targetDate).eq('publicado', true).maybeSingle();
       if (e) throw e;
-      if (!d){ setDia(null); setItems([]); return; }
+      if (!d){ if (!cancel){ setDia(null); setItems([]); } return; }
       if (cancel) return;
       setDia(d as any);
 
@@ -81,16 +115,26 @@ export default function ClientVisitas(){
         if (e3) throw e3;
         (cats||[]).forEach((c:any)=>{ map[c.id] = c; });
       }
-      const enriched: DiaItem[] = (di||[]).map((x:any)=>({
-        ...x,
-        categoria: (Object.keys(TITLE_MAP) as Categoria[]).includes(x.categoria) ? x.categoria : 'desayuno',
-        item: map[x.item_id]
-      }));
+
+      // Enriquecemos y normalizamos categorías; ignoramos las desconocidas
+      const enriched: DiaItem[] = (di||[])
+        .map((x:any)=> {
+          const cat = normalizeCategoria(x.categoria);
+          if (!cat) return null;
+          return {
+            ...x,
+            categoria: cat,
+            item: map[x.item_id]
+          } as DiaItem;
+        })
+        .filter(Boolean) as DiaItem[];
+
       if (cancel) return;
       setItems(enriched);
     }catch(err:any){
       console.error(err);
       toast({ title:'Sin menú', description:'Aún no hay menú publicado para esa fecha.' });
+      if (!cancel){ setDia(null); setItems([]); }
     }finally{ if (!cancel) setLoading(false); }
   })(); return ()=>{cancel=true}; },[targetDate]);
 
@@ -99,7 +143,9 @@ export default function ClientVisitas(){
       desayuno:[], almuerzo:[], merienda:[],
       bebida_desayuno:[], bebida_almuerzo:[], bebida_merienda:[]
     };
-    for (const it of items){ groups[it.categoria]?.push(it); }
+    for (const it of items){
+      groups[it.categoria]?.push(it);
+    }
     return groups;
   },[items]);
 
@@ -129,13 +175,16 @@ export default function ClientVisitas(){
     setCreating(true);
     try{
       const { data: ped, error: perr } = await supabase
-        .from('pedidos_visitas').insert({ dia_id: dia.id, name_user: name, notas: orderNotes?.trim() || null }).select().single();
+        .from('pedidos_visitas')
+        .insert({ dia_id: dia.id, name_user: name, notas: orderNotes?.trim() || null })
+        .select()
+        .single();
       if (perr) throw perr;
 
       const payload = picks.map(p => ({
         pedido_id: (ped as any).id,
         item_id: p.it.item_id,
-        categoria: p.cat,
+        categoria: p.cat, // ya normalizada
         cantidad: 1,
         item_nombre: p.it.item?.nombre ?? null,
       }));

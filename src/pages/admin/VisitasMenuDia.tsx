@@ -49,7 +49,7 @@ interface Dia {
   notas?: string | null;
 }
 
-interface DiaItem {
+interface DiaItemRow {
   id: string;
   dia_id: string;
   item_id: string;
@@ -57,7 +57,7 @@ interface DiaItem {
   disponible: boolean;
 }
 
-type SelEntry = { checked: boolean; categoria: Categoria };
+type SelEntry = { checked: boolean; cats: Categoria[] };
 
 function toLocalISO(date: Date) {
   const d = new Date(date);
@@ -89,7 +89,13 @@ export default function MenuDiaSimple() {
   const [migrarOpen, setMigrarOpen] = useState(false);
   const [fechaOrigen, setFechaOrigen] = useState<string>(() => toLocalISO(new Date()));
   const [origenCargando, setOrigenCargando] = useState(false);
-  const [origenItems, setOrigenItems] = useState<Array<{ item_id: string; nombre: string; categoria: Categoria; image_url?: string | null; checked: boolean }>>([]);
+  const [origenItems, setOrigenItems] = useState<Array<{
+    item_id: string;
+    nombre: string;
+    categoria: Categoria;
+    image_url?: string | null;
+    checked: boolean;
+  }>>([]);
 
   // Enlace / QR fijo
   const enlaceFijo = useMemo(() => `${window.location.origin}/visitas`, []);
@@ -120,7 +126,7 @@ export default function MenuDiaSimple() {
     })();
   }, []);
 
-  /** Cargar menú del día y su selección (ACTUALIZA si existe) */
+  /** Cargar menú del día y su selección (multi-categoría por item) */
   useEffect(() => {
     (async () => {
       const { data: d, error } = await supabase
@@ -158,28 +164,39 @@ export default function MenuDiaSimple() {
         return;
       }
 
+      // Construir map item_id -> { checked, cats[] } (agrupar múltiples filas por item)
       const map: Record<string, SelEntry> = {};
       (di || []).forEach((x: any) => {
-        // normaliza a una de las categorías permitidas
         const cat = (CATS.includes(x.categoria as Categoria) ? x.categoria : 'desayuno') as Categoria;
-        map[x.item_id] = { checked: Boolean(x.disponible), categoria: cat };
+        const entry = map[x.item_id] ?? { checked: false, cats: [] };
+        if (x.disponible) entry.checked = true;
+        if (!entry.cats.includes(cat)) entry.cats.push(cat);
+        map[x.item_id] = entry;
       });
       setSelected(map);
     })();
   }, [fecha]);
 
   /** Helpers selección */
-  const setCat = (id: string, cat: Categoria) =>
-    setSelected(prev => ({ ...prev, [id]: { ...(prev[id] ?? { checked: false, categoria: cat }), categoria: cat } }));
+  const toggleItem = (id: string, checked: boolean) =>
+    setSelected(prev => {
+      const curr = prev[id] ?? { checked: false, cats: [] };
+      return { ...prev, [id]: { ...curr, checked } };
+    });
 
-  const toggle = (id: string, checked: boolean) =>
-    setSelected(prev => ({ ...prev, [id]: { ...(prev[id] ?? { checked: false, categoria: 'desayuno' }), checked } }));
+  const toggleCat = (id: string, cat: Categoria, checked: boolean) =>
+    setSelected(prev => {
+      const curr = prev[id] ?? { checked: false, cats: [] };
+      const has = curr.cats.includes(cat);
+      const nextCats = checked ? (has ? curr.cats : [...curr.cats, cat]) : curr.cats.filter(c => c !== cat);
+      return { ...prev, [id]: { ...curr, cats: nextCats } };
+    });
 
-  /** Guardar (UPDATE vs INSERT + desactivar no seleccionados) */
+  /** Guardar: múltiples filas por (item, categoría) */
   const save = async () => {
     setSaving(true);
     try {
-      // Día (upsert por fecha, pero ACTUALIZA si existe)
+      // Día (upsert por fecha)
       const { data: up, error: e } = await supabase
         .from('menu_visitas_dias')
         .upsert({ fecha, publicado: activo, notas: notas?.trim() || null }, { onConflict: 'fecha' })
@@ -190,48 +207,56 @@ export default function MenuDiaSimple() {
       const diaId = (up as any).id as string;
       setDia(up as any);
 
-      // Existentes
+      // Traer existentes del día
       const { data: actuales, error: eAct } = await supabase
         .from('menu_visitas_dia_items')
         .select('id,item_id,categoria,disponible')
         .eq('dia_id', diaId);
       if (eAct) throw eAct;
 
-      const byItem = new Map<string, DiaItem>();
-      (actuales || []).forEach((r: any) => byItem.set(r.item_id, r as DiaItem));
+      // Map de existentes por clave item|cat
+      const existMap = new Map<string, { id: string; disponible: boolean }>();
+      (actuales || []).forEach((r: any) => {
+        existMap.set(`${r.item_id}|${r.categoria}`, { id: r.id, disponible: r.disponible });
+      });
 
-      const seleccionadosIds = Object.entries(selected).filter(([, v]) => v.checked).map(([id]) => id);
+      // Deseado: todos los pares (item, cat) de items chequeados
+      const desiredKeys: string[] = [];
+      Object.entries(selected).forEach(([item_id, val]) => {
+        if (!val.checked) return;
+        (val.cats || []).forEach(cat => desiredKeys.push(`${item_id}|${cat}`));
+      });
 
-      // UPDATE seleccionados ya existentes
-      const updates = seleccionadosIds
-        .filter(item_id => byItem.has(item_id))
-        .map(item_id => {
-          const row = byItem.get(item_id)!;
-          const categoria = selected[item_id].categoria;
-          return supabase.from('menu_visitas_dia_items').update({ disponible: true, categoria }).eq('id', row.id);
-        });
+      // INSERT nuevos
+      const toInsert = desiredKeys.filter(k => !existMap.has(k));
+      const insertPayload = toInsert.map(k => {
+        const [item_id, categoria] = k.split('|') as [string, Categoria];
+        return { dia_id: diaId, item_id, categoria, disponible: true };
+      });
 
-      // INSERT nuevos seleccionados
-      const nuevos = seleccionadosIds.filter(item_id => !byItem.has(item_id));
-      const insertsPromise = nuevos.length
-        ? supabase
-            .from('menu_visitas_dia_items')
-            .insert(nuevos.map(item_id => ({
-              dia_id: diaId,
-              item_id,
-              categoria: selected[item_id].categoria,
-              disponible: true
-            })))
-        : Promise.resolve({ error: null });
+      // UPDATE → poner disponible=true a los que existen y están deseados pero tal vez quedaron en false
+      const toUpdateIds: string[] = [];
+      desiredKeys.forEach(k => {
+        const ex = existMap.get(k);
+        if (ex && ex.disponible !== true) toUpdateIds.push(ex.id);
+      });
 
-      // Desactivar los que quedaron desmarcados
-      const desactivar = (actuales || [])
-        .filter((r: any) => !(selected[r.item_id]?.checked))
-        .map((r: any) => supabase.from('menu_visitas_dia_items').update({ disponible: false }).eq('id', r.id));
+      // DELETE los que existen pero ya no están deseados
+      const desiredSet = new Set(desiredKeys);
+      const toDeleteIds: string[] = [];
+      existMap.forEach((v, k) => { if (!desiredSet.has(k)) toDeleteIds.push(v.id); });
 
-      const results = await Promise.all([...updates, insertsPromise as any, ...desactivar]);
-      const err = results.find((r: any) => r?.error);
-      if (err?.error) throw err.error;
+      // Ejecutar en paralelo
+      const ops: Array<Promise<any>> = [];
+      if (insertPayload.length) ops.push(supabase.from('menu_visitas_dia_items').insert(insertPayload));
+      if (toUpdateIds.length) ops.push(supabase.from('menu_visitas_dia_items').update({ disponible: true }).in('id', toUpdateIds));
+      if (toDeleteIds.length) ops.push(supabase.from('menu_visitas_dia_items').delete().in('id', toDeleteIds));
+
+      if (ops.length) {
+        const res = await Promise.all(ops);
+        const err = res.find(r => r?.error);
+        if (err?.error) throw err.error;
+      }
 
       toast({ title: 'Guardado', description: 'Menú del día actualizado.' });
     } catch (err: any) {
@@ -304,41 +329,35 @@ export default function MenuDiaSimple() {
       const diaId = (up as any).id as string;
       setDia(up as any);
 
+      // existentes destino
       const { data: actuales, error: eAct } = await supabase
         .from('menu_visitas_dia_items')
         .select('id,item_id,categoria,disponible')
         .eq('dia_id', diaId);
       if (eAct) throw eAct;
 
-      const byItem = new Map<string, DiaItem>();
-      (actuales || []).forEach((r: any) => byItem.set(r.item_id, r as DiaItem));
-
+      const exist = new Set<string>((actuales || []).map((r: any) => `${r.item_id}|${r.categoria}`));
       const aCopiar = origenItems.filter(x => x.checked);
+      const nuevos = aCopiar.filter(x => !exist.has(`${x.item_id}|${x.categoria}`));
 
-      const updates = aCopiar
-        .filter(x => byItem.has(x.item_id))
-        .map(x => {
-          const row = byItem.get(x.item_id)!;
-          return supabase.from('menu_visitas_dia_items').update({ disponible: true, categoria: x.categoria }).eq('id', row.id);
+      if (nuevos.length) {
+        const { error: insErr } = await supabase.from('menu_visitas_dia_items').insert(
+          nuevos.map(x => ({ dia_id: diaId, item_id: x.item_id, categoria: x.categoria, disponible: true }))
+        );
+        if (insErr) throw insErr;
+      }
+
+      // refrescar selección en pantalla (merge)
+      setSelected(prev => {
+        const next = { ...prev };
+        aCopiar.forEach(x => {
+          const curr = next[x.item_id] ?? { checked: true, cats: [] };
+          if (!curr.cats.includes(x.categoria)) curr.cats.push(x.categoria);
+          curr.checked = true;
+          next[x.item_id] = curr;
         });
-
-      const nuevos = aCopiar.filter(x => !byItem.has(x.item_id));
-      const insertsPromise = nuevos.length
-        ? supabase
-            .from('menu_visitas_dia_items')
-            .insert(nuevos.map(x => ({ dia_id: diaId, item_id: x.item_id, categoria: x.categoria, disponible: true })))
-        : Promise.resolve({ error: null });
-
-      const results = await Promise.all([...updates, insertsPromise as any]);
-      const err = results.find((r: any) => r?.error);
-      if (err?.error) throw err.error;
-
-      // refrescar selección en pantalla
-      const selectedMap: Record<string, SelEntry> = {};
-      aCopiar.forEach(x => {
-        selectedMap[x.item_id] = { checked: true, categoria: x.categoria };
+        return next;
       });
-      setSelected(prev => ({ ...prev, ...selectedMap }));
 
       setMigrarOpen(false);
       toast({ title: 'Menú migrado', description: `Se copió el menú de ${fechaOrigen} a ${fecha}.` });
@@ -350,11 +369,12 @@ export default function MenuDiaSimple() {
     }
   };
 
-  /** Contadores por categoría */
+  /** Contadores por categoría (mismos colores/orden) */
   const counters = useMemo(() => {
     const c = Object.fromEntries(CATS.map(k => [k, 0])) as Record<Categoria, number>;
-    Object.entries(selected).forEach(([, v]) => {
-      if (v?.checked) c[v.categoria] += 1;
+    Object.values(selected).forEach(v => {
+      if (!v?.checked) return;
+      (v.cats || []).forEach(cat => { c[cat] += 1; });
     });
     return c;
   }, [selected]);
@@ -390,12 +410,17 @@ export default function MenuDiaSimple() {
           <CardHeader>
             <CardTitle className="text-slate-900">Configuración del día</CardTitle>
           </CardHeader>
-        <CardContent className="space-y-4">
+          <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3 items-end">
               <div>
                 <Label htmlFor="fecha" className="text-slate-900 font-semibold">Fecha</Label>
-                <Input id="fecha" type="date" value={fecha} onChange={e => setFecha(e.target.value)}
-                       className="bg-white text-slate-900" />
+                <Input
+                  id="fecha"
+                  type="date"
+                  value={fecha}
+                  onChange={e => setFecha(e.target.value)}
+                  className="bg-white text-slate-900"
+                />
                 <div className="text-xs text-slate-600 mt-1">
                   Hoy: {toLocalISO(new Date())} • Sugerido: {plusDaysLocalISO(1)}
                 </div>
@@ -408,15 +433,20 @@ export default function MenuDiaSimple() {
 
               <div>
                 <Label htmlFor="notas" className="text-slate-900 font-semibold">Notas</Label>
-                <Textarea id="notas" rows={2} value={notas} onChange={e => setNotas(e.target.value)}
-                          placeholder="Ej.: Menú sujeto a disponibilidad"
-                          className="bg-white text-slate-900 placeholder:text-slate-500" />
+                <Textarea
+                  id="notas"
+                  rows={2}
+                  value={notas}
+                  onChange={e => setNotas(e.target.value)}
+                  placeholder="Ej.: Menú sujeto a disponibilidad"
+                  className="bg-white text-slate-900 placeholder:text-slate-500"
+                />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Selector de productos (similar a “Productos”) */}
+        {/* Selector de productos (multi-categoría por item) */}
         <Card className="mb-6 bg-white border border-slate-200 shadow-sm">
           <CardHeader>
             <CardTitle className="text-slate-900">Selecciona productos del catálogo</CardTitle>
@@ -430,41 +460,61 @@ export default function MenuDiaSimple() {
               </div>
             ) : (
               <div className="border border-slate-200 rounded-lg divide-y">
-                {catalog.map(it => (
-                  <div key={it.id} className="p-3 grid sm:grid-cols-12 gap-3 items-center">
-                    <div className="sm:col-span-6 flex items-center gap-3">
-                      <Checkbox
-                        checked={selected[it.id]?.checked ?? false}
-                        onCheckedChange={v => toggle(it.id, Boolean(v))}
-                      />
-                      <div>
-                        <div className="font-medium text-slate-900">{it.nombre}</div>
-                        {it.description && <div className="text-xs text-slate-600">{it.description}</div>}
+                {catalog.map(it => {
+                  const entry = selected[it.id] ?? { checked: false, cats: [] };
+                  const isIn = (cat: Categoria) => entry.cats.includes(cat);
+                  return (
+                    <div key={it.id} className="p-3 grid sm:grid-cols-12 gap-3 items-center">
+                      {/* Col 1: activar producto */}
+                      <div className="sm:col-span-5 flex items-start gap-3">
+                        <Checkbox
+                          checked={entry.checked}
+                          onCheckedChange={v => toggleItem(it.id, Boolean(v))}
+                        />
+                        <div>
+                          <div className="font-medium text-slate-900">{it.nombre}</div>
+                          {it.description && (
+                            <div className="text-xs text-slate-600">{it.description}</div>
+                          )}
+                          <div className="text-[11px] text-slate-500 mt-1">
+                            Marca una o varias categorías para este producto.
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Col 2: categorías (checkboxes) */}
+                      <div className="sm:col-span-4">
+                        <div className="grid grid-cols-2 gap-2">
+                          {CATS.map(cat => (
+                            <label key={cat} className="flex items-center gap-2 rounded border px-2 py-1">
+                              <Checkbox
+                                checked={isIn(cat)}
+                                onCheckedChange={v => toggleCat(it.id, cat, Boolean(v))}
+                                disabled={!entry.checked}
+                              />
+                              <span className="text-sm text-black">{TITLE_MAP[cat]}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Col 3: imagen */}
+                      <div className="sm:col-span-3">
+                        {it.image_url ? (
+                          <img
+                            src={it.image_url}
+                            alt={it.nombre}
+                            className="h-16 w-28 object-cover rounded ring-1 ring-slate-200"
+                          />
+                        ) : (
+                          <div className="h-16 w-28 grid place-items-center bg-slate-100 rounded text-xs text-slate-500">
+                            Sin foto
+                          </div>
+                        )}
                       </div>
                     </div>
-
-                    <div className="sm:col-span-3">
-                      <Label className="text-xs text-slate-700">Categoría</Label>
-                      <select
-                        className="border border-slate-300 rounded px-2 py-2 w-full bg-white text-slate-900"
-                        value={selected[it.id]?.categoria ?? 'desayuno'}
-                        onChange={e => setCat(it.id, e.target.value as Categoria)}
-                      >
-                        {CATS.map(c => (
-                          <option key={c} value={c}>{TITLE_MAP[c]}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="sm:col-span-3">
-                      {it.image_url ? (
-                        <img src={it.image_url} alt={it.nombre} className="h-16 w-28 object-cover rounded ring-1 ring-slate-200" />
-                      ) : (
-                        <div className="h-16 w-28 grid place-items-center bg-slate-100 rounded text-xs text-slate-500">Sin foto</div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -538,7 +588,10 @@ export default function MenuDiaSimple() {
                   id="fecha_origen"
                   type="date"
                   value={fechaOrigen}
-                  onChange={e => cargarOrigen(e.target.value)}
+                  onChange={e => {
+                    setFechaOrigen(e.target.value);
+                    cargarOrigen(e.target.value);
+                  }}
                   className="bg-white text-slate-900"
                 />
               </div>
