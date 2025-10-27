@@ -10,6 +10,9 @@ import { Package } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
+// ✅ importa el logo desde /public (Vite lo sirve por ruta absoluta)
+import visitasLogo from '/assets/visitas-logo.png';
+
 type Categoria = 'desayuno' | 'almuerzo' | 'merienda';
 interface DiaMenu { id:string; fecha:string; publicado:boolean }
 interface CatalogItem { id:string; nombre:string; image_url?:string|null; description?:string|null }
@@ -75,7 +78,6 @@ export default function ClientVisitas(){
     }finally{ if (!cancel) setLoading(false); }
   })(); return ()=>{cancel=true}; },[targetDate]);
 
-  // Agrupado por categoría (sin buscador)
   const byCat = useMemo(()=>{
     const groups: Record<Categoria, DiaItem[]> = { desayuno:[], almuerzo:[], merienda:[] };
     for (const it of items){ groups[it.categoria].push(it); }
@@ -126,6 +128,8 @@ export default function ClientVisitas(){
     }finally{ setCreating(false); }
   };
 
+  /* ====================== UI ====================== */
+
   if (loading) {
     return (
       <div className="min-h-screen grid place-items-center bg-[url('/assets/visitas-bg.jpg')] bg-cover bg-center">
@@ -138,7 +142,7 @@ export default function ClientVisitas(){
     return (
       <div className="min-h-screen grid place-items-center bg-[url('/assets/visitas-bg.jpg')] bg-cover bg-center p-6">
         <Card className="max-w-md w-full p-6 text-center backdrop-blur bg-white/85">
-          <img src="/assets/visitas-logo.png" alt="Visitas" className="mx-auto h-12 mb-3" />
+          <img src={visitasLogo} alt="Visitas" className="mx-auto h-12 mb-3" />
           <p className="text-lg font-semibold text-slate-900">Aún no hay menú publicado para {targetDate}.</p>
           <p className="text-sm text-slate-700 mt-2">Vuelve más tarde, por favor.</p>
         </Card>
@@ -148,16 +152,16 @@ export default function ClientVisitas(){
 
   const CatBlock = ({ cat, title }:{cat:Categoria; title:string})=>{
     const list = byCat[cat];
-    if (!list || list.length === 0) return null; // 🔥 no mostrar categorías vacías
+    if (!list || list.length === 0) return null; // 🔥 oculta categorías vacías
 
     return (
-      <section className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-200">
-        <div className="px-4 pt-4 pb-2 text-[11px] uppercase tracking-wide text-slate-500">{title}</div>
+      <section className="rounded-2xl overflow-hidden border border-white/40 bg-white/80 backdrop-blur shadow-sm">
+        <div className="px-4 pt-4 pb-2 text-[11px] uppercase tracking-wide text-slate-600">{title}</div>
         <ul>
           {list.map(it => {
             const active = selectedByCat[cat]?.id === it.id;
             return (
-              <li key={it.id} className={`flex items-stretch gap-3 p-4 border-t first:border-t-0 border-slate-200 ${active ? 'bg-slate-50' : ''}`}>
+              <li key={it.id} className={`flex items-stretch gap-3 p-4 border-t first:border-t-0 border-white/50 ${active ? 'bg-white/60' : ''}`}>
                 <div className="flex-1 min-w-0 pr-2">
                   <label className="font-semibold leading-snug cursor-pointer text-slate-900">
                     <input
@@ -169,10 +173,10 @@ export default function ClientVisitas(){
                     />
                     {it.item?.nombre}
                   </label>
-                  {it.item?.description && <div className="text-sm text-slate-600">{it.item.description}</div>}
+                  {it.item?.description && <div className="text-sm text-slate-700">{it.item.description}</div>}
                 </div>
                 <div className="relative w-40 shrink-0">
-                  <div className="rounded-xl overflow-hidden bg-slate-100 aspect-[16/9] ring-1 ring-slate-200">
+                  <div className="rounded-xl overflow-hidden bg-slate-100/80 aspect-[16/9] ring-1 ring-white/60">
                     {it.item?.image_url ? (
                       <img src={it.item.image_url} alt={it.item.nombre} className="h-full w-full object-cover" loading="lazy"/>
                     ) : (
@@ -190,34 +194,35 @@ export default function ClientVisitas(){
 
   return (
     <div className="min-h-screen bg-[url('/assets/visitas-bg.jpg')] bg-cover bg-center">
-      {/* overlay para legibilidad */}
-      <div className="min-h-screen bg-white/60 backdrop-blur-[1px]">
-        <div className="container mx-auto px-4 py-8 max-w-3xl">
-          {/* Cabecera */}
-          <div className="mb-6 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <img src="/assets/visitas-logo.svg" alt="Visitas" className="h-10" />
-              <div>
-                <h1 className="text-2xl font-semibold text-slate-900">Elige tu menú de mañana</h1>
-                <p className="text-sm text-slate-700">Fecha: {targetDate}</p>
-              </div>
+      <div className="container mx-auto px-4 py-8 max-w-3xl">
+        {/* Cabecera sobre el fondo visible */}
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            {/* ⬇️ NUEVO contenedor blanco para el logo */}
+            <div className="bg-white/95 rounded-xl p-2 ring-1 ring-white/70 shadow-sm">
+              <img src={visitasLogo} alt="Visitas" className="h-10 w-auto" />
             </div>
-            <div className="hidden sm:block" />
-          </div>
 
-          {/* Categorías (solo las que tienen ítems) */}
-          <div className="grid gap-6">
-            <CatBlock cat="desayuno" title="Desayuno" />
-            <CatBlock cat="almuerzo" title="Almuerzo" />
-            <CatBlock cat="merienda" title="Merienda" />
+            <div className="rounded-lg px-3 py-2 bg-white/70 backdrop-blur">
+              <h1 className="text-2xl font-semibold text-slate-900">Elige tu menú de mañana</h1>
+              <p className="text-sm text-slate-800">Fecha: {targetDate}</p>
+            </div>
           </div>
+          <div className="hidden sm:block" />
+        </div>
 
-          {/* CTA */}
-          <div className="mt-6 flex justify-end">
-            <Button onClick={openOrder} className="btn-accent">
-              Confirmar selección
-            </Button>
-          </div>
+        {/* Categorías (solo las que tienen ítems) */}
+        <div className="grid gap-6">
+          <CatBlock cat="desayuno" title="Desayuno" />
+          <CatBlock cat="almuerzo" title="Almuerzo" />
+          <CatBlock cat="merienda" title="Merienda" />
+        </div>
+
+        {/* CTA */}
+        <div className="mt-6 flex justify-end">
+          <Button onClick={openOrder} className="btn-accent">
+            Confirmar selección
+          </Button>
         </div>
       </div>
 
