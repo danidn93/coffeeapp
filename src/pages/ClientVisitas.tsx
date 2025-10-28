@@ -68,7 +68,7 @@ function useQuery(){ return new URLSearchParams(useLocation().search); }
 function resolveDate(q: URLSearchParams){
   const date = q.get('date');
   if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
-  const t = new Date(); const n = new Date(t.getFullYear(), t.getMonth(), t.getDate() ); //+ 1 agregar luego
+  const t = new Date(); const n = new Date(t.getFullYear(), t.getMonth(), t.getDate() +1 );
   return n.toISOString().slice(0,10); // “mañana” por defecto
 }
 

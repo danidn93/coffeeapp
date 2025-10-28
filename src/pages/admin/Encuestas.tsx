@@ -32,7 +32,7 @@ type RowView = BaseRow & {
   pedidos?: { name_user: string | null } | null;
 };
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 25;
 
 export default function AdminEncuestas() {
   const { user } = useAuth();
