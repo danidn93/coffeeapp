@@ -352,7 +352,7 @@ export default function AdminDashboard() {
               <Link to="/admin/visitas/menu">
                 <Card className="dashboard-card cursor-pointer">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="card-title">Menús de visitas</CardTitle>
+                    <CardTitle className="card-title">Menús para visitas</CardTitle>
                     <CalendarDays className="h-4 w-4 opacity-80" />
                   </CardHeader>
                   <CardContent className="card-inner">
@@ -368,7 +368,7 @@ export default function AdminDashboard() {
               <Link to="/admin/visitas/productos">
                 <Card className="dashboard-card cursor-pointer">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="card-title">Productos visitas</CardTitle>
+                    <CardTitle className="card-title">Productos para visitas</CardTitle>
                     <PackageOpen className="h-4 w-4 opacity-80" />
                   </CardHeader>
                   <CardContent className="card-inner">

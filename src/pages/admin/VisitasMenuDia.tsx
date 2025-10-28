@@ -446,6 +446,47 @@ export default function MenuDiaSimple() {
           </CardContent>
         </Card>
 
+        {/* Enlace fijo + QR final */}
+        <Card className="mb-6 bg-white border border-slate-200 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-slate-900">Enlace público (fijo)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center gap-3">
+              <Input readOnly value={enlaceFijo} className="w-full md:w-[360px] bg-white text-slate-900" />
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => navigator.clipboard.writeText(enlaceFijo)}>
+                  <Copy className="h-4 w-4 mr-1" /> Copiar
+                </Button>
+                <a href={enlaceFijo} target="_blank" rel="noreferrer">
+                  <Button variant="outline">
+                    <ExternalLink className="h-4 w-4 mr-1" /> Abrir
+                  </Button>
+                </a>
+                <Button variant="outline" onClick={() => qrRef.current && QRCode.toCanvas(qrRef.current, enlaceFijo, { width: 220 })}>
+                  <QrCode className="h-4 w-4 mr-1" /> Generar QR
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <canvas ref={qrRef} className="border rounded" width={220} height={220} />
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const c = qrRef.current; if (!c) return;
+                  const a = document.createElement('a');
+                  a.href = c.toDataURL('image/png');
+                  a.download = 'QR_visitas.png';
+                  a.click();
+                }}
+              >
+                <Download className="h-4 w-4 mr-1" /> Descargar PNG
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Selector de productos (multi-categoría por item) */}
         <Card className="mb-6 bg-white border border-slate-200 shadow-sm">
           <CardHeader>
@@ -531,46 +572,7 @@ export default function MenuDiaSimple() {
           </CardContent>
         </Card>
 
-        {/* Enlace fijo + QR final */}
-        <Card className="bg-white border border-slate-200 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-slate-900">Enlace público (fijo)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-col md:flex-row md:items-center gap-3">
-              <Input readOnly value={enlaceFijo} className="w-full md:w-[360px] bg-white text-slate-900" />
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => navigator.clipboard.writeText(enlaceFijo)}>
-                  <Copy className="h-4 w-4 mr-1" /> Copiar
-                </Button>
-                <a href={enlaceFijo} target="_blank" rel="noreferrer">
-                  <Button variant="outline">
-                    <ExternalLink className="h-4 w-4 mr-1" /> Abrir
-                  </Button>
-                </a>
-                <Button variant="outline" onClick={() => qrRef.current && QRCode.toCanvas(qrRef.current, enlaceFijo, { width: 220 })}>
-                  <QrCode className="h-4 w-4 mr-1" /> Generar QR
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <canvas ref={qrRef} className="border rounded" width={220} height={220} />
-              <Button
-                variant="outline"
-                onClick={() => {
-                  const c = qrRef.current; if (!c) return;
-                  const a = document.createElement('a');
-                  a.href = c.toDataURL('image/png');
-                  a.download = 'QR_visitas.png';
-                  a.click();
-                }}
-              >
-                <Download className="h-4 w-4 mr-1" /> Descargar PNG
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        
       </main>
 
       {/* Modal Migrar */}

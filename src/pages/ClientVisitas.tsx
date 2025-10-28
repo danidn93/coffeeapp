@@ -309,7 +309,7 @@ export default function ClientVisitas(){
               <Input value={customerName} onChange={e=>setCustomerName(e.target.value)} placeholder="Valeria" />
             </div>
             <div>
-              <Label>Notas (opcional)</Label>
+              <Label>Consideraciones o Notas (opcional)</Label>
               <Textarea value={orderNotes} onChange={e=>setOrderNotes(e.target.value)} rows={3} placeholder="Indicaciones…" />
             </div>
           </div>
