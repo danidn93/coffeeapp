@@ -65,16 +65,37 @@ interface DiaItem {
 }
 
 function useQuery(){ return new URLSearchParams(useLocation().search); }
+
+// HOY en zona local (YYYY-MM-DD)
+function todayStr(){
+  const t = new Date();
+  const y = t.getFullYear();
+  const m = String(t.getMonth()+1).padStart(2,'0');
+  const d = String(t.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+
 function resolveDate(q: URLSearchParams){
   const date = q.get('date');
   if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
-  const t = new Date(); const n = new Date(t.getFullYear(), t.getMonth(), t.getDate() +1 );
-  return n.toISOString().slice(0,10); // “mañana” por defecto
+  // por defecto: “mañana”
+  const t = new Date();
+  const n = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  return n.toISOString().slice(0,10);
 }
 
 export default function ClientVisitas(){
   const q = useQuery();
-  const targetDate = useMemo(()=>resolveDate(q), [q]);
+
+  // ⏱️ Estado controlado de la fecha objetivo
+  const [targetDate, setTargetDate] = useState<string>(()=>resolveDate(q));
+
+  // Actualiza querystring sin recargar
+  const updateUrlDate = (date: string)=>{
+    const url = new URL(window.location.href);
+    url.searchParams.set('date', date);
+    window.history.replaceState({}, '', url.toString());
+  };
 
   const [dia, setDia] = useState<DiaMenu|null>(null);
   const [items, setItems] = useState<DiaItem[]>([]);
@@ -88,7 +109,10 @@ export default function ClientVisitas(){
   const [orderNotes, setOrderNotes] = useState('');
   const [creating, setCreating] = useState(false);
 
+  // 🔄 Carga de menú al cambiar fecha
   useEffect(()=>{ let cancel=false;(async()=>{
+    setLoading(true);
+    setSelectedByCat({}); // reset selecciones al cambiar de fecha
     try{
       const { data: d, error: e } = await supabase
         .from('menu_visitas_dias').select('*')
@@ -133,7 +157,7 @@ export default function ClientVisitas(){
       setItems(enriched);
     }catch(err:any){
       console.error(err);
-      toast({ title:'Sin menú', description:'Aún no hay menú publicado para esa fecha.' });
+      toast({ title:'Sin menú', description:`Aún no hay menú publicado para ${targetDate}.` });
       if (!cancel){ setDia(null); setItems([]); }
     }finally{ if (!cancel) setLoading(false); }
   })(); return ()=>{cancel=true}; },[targetDate]);
@@ -200,6 +224,12 @@ export default function ClientVisitas(){
 
   /* ====================== UI ====================== */
 
+  const minDate = todayStr();
+  const isTomorrowDefault = (() => {
+    const def = resolveDate(q);
+    return def === targetDate;
+  })();
+
   if (loading) {
     return (
       <div className="min-h-screen grid place-items-center bg-[url('/assets/visitas-bg.jpg')] bg-cover bg-center">
@@ -210,12 +240,49 @@ export default function ClientVisitas(){
 
   if (!dia) {
     return (
-      <div className="min-h-screen grid place-items-center bg-[url('/assets/visitas-bg.jpg')] bg-cover bg-center p-6">
-        <Card className="max-w-md w-full p-6 text-center backdrop-blur bg-white/85">
-          <img src={visitasLogo} alt="Visitas" className="mx-auto h-12 mb-3" />
-          <p className="text-lg font-semibold text-slate-900">Aún no hay menú publicado para {targetDate}.</p>
-          <p className="text-sm text-slate-700 mt-2">Vuelve más tarde, por favor.</p>
-        </Card>
+      <div className="min-h-screen bg-[url('/assets/visitas-bg.jpg')] bg-cover bg-center p-6">
+        <div className="container mx-auto px-4 max-w-3xl">
+          {/* 🔽 Selector de fecha (bloquea pasadas) */}
+          <Card className="w-full p-4 mb-4 backdrop-blur bg-white/85">
+            <div className="flex items-end gap-3">
+              <div className="flex-1">
+                <Label>Selecciona la fecha</Label>
+                <Input
+                  type="date"
+                  value={targetDate}
+                  min={minDate}
+                  onChange={(e)=>{
+                    const val = e.target.value;
+                    if (val && val >= minDate){
+                      setTargetDate(val);
+                      updateUrlDate(val);
+                    }
+                  }}
+                />
+              </div>
+              <Button
+                variant="secondary"
+                onClick={()=>{
+                  const def = resolveDate(q);
+                  setTargetDate(def);
+                  updateUrlDate(def);
+                }}
+              >
+                Usar mañana
+              </Button>
+            </div>
+          </Card>
+
+          <Card className="max-w-md w-full p-6 text-center backdrop-blur bg-white/85 mx-auto">
+            <img src={visitasLogo} alt="Visitas" className="mx-auto h-12 mb-3" />
+            <p className="text-lg font-semibold text-slate-900">
+              Aún no hay menú publicado para {targetDate}.
+            </p>
+            <p className="text-sm text-slate-700 mt-2">
+              Elige otra fecha (no anterior a hoy){isTomorrowDefault ? '' : ' o vuelve a “mañana” con el botón de arriba'}.
+            </p>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -265,8 +332,8 @@ export default function ClientVisitas(){
   return (
     <div className="min-h-screen bg-[url('/assets/visitas-bg.jpg')] bg-cover bg-center">
       <div className="container mx-auto px-4 py-8 max-w-3xl">
-        {/* Cabecera sobre el fondo visible */}
-        <div className="mb-6 flex items-center justify-between gap-3">
+        {/* Cabecera + selector de fecha */}
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div className="flex items-center gap-3">
             {/* Contenedor blanco para el logo */}
             <div className="bg-white/95 rounded-xl p-2 ring-1 ring-white/70 shadow-sm">
@@ -274,11 +341,41 @@ export default function ClientVisitas(){
             </div>
 
             <div className="rounded-lg px-3 py-2 bg-white/70 backdrop-blur">
-              <h1 className="text-2xl font-semibold text-slate-900">Elige tu menú de mañana</h1>
+              <h1 className="text-2xl font-semibold text-slate-900">
+                {targetDate === todayStr() ? 'Elige tu menú de hoy' : 'Elige tu menú de mañana'}
+              </h1>
               <p className="text-sm text-slate-800">Fecha: {targetDate}</p>
             </div>
           </div>
-          <div className="hidden sm:block" />
+
+          {/* 🗓️ Selector de fecha (bloquea pasadas) */}
+          <div className="flex items-end gap-3">
+            <div className="w-full sm:w-auto">
+              <Label className='text-white'>Fecha</Label>
+              <Input
+                type="date"
+                value={targetDate}
+                min={minDate}
+                onChange={(e)=>{
+                  const val = e.target.value;
+                  if (val && val >= minDate){
+                    setTargetDate(val);
+                    updateUrlDate(val);
+                  }
+                }}
+              />
+            </div>
+            <Button
+              variant="secondary"
+              onClick={()=>{
+                const def = resolveDate(q);
+                setTargetDate(def);
+                updateUrlDate(def);
+              }}
+            >
+              Usar mañana
+            </Button>
+          </div>
         </div>
 
         {/* Categorías (solo las que tienen ítems) */}
