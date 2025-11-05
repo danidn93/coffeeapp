@@ -14,9 +14,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 // fondos / branding
-import adminBg from '/assets/movil-bg-diademuertos.png';
-import adminBgDesktop from '/assets/admin-bg-diademuertos.png';
-import logo from '/assets/logo-admin-diademuertos.png';
+import adminBg from '/assets/movil-bg-navidad.png'; //Cambiar según la ocasión
+import adminBgDesktop from '/assets/admin-bg-navidad.png'; //Cambiar según la ocasión
+import logo from '/assets/logo-admin-navidad.png'; //Cambiar según la ocasión
 
 interface Mesa {
   id: string;

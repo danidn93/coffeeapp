@@ -10,7 +10,7 @@ import Footer from "@/components/Footer";
 import Events from "@/components/EventsSection";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import logo from "/assets/logo-admin.png";
+import logo from "/assets/logo-admin-navidad.png";
 
 type AlertKey = "local-cerrado" | "sala-inactiva" | "mesa-invalida";
 
