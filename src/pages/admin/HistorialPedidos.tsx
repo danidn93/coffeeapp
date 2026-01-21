@@ -4,7 +4,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
-
+import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import { ArrowLeft, Search, RotateCcw, Users, DoorOpen } from 'lucide-react';
 
 // --- Tipos Unificados ---
 type EstadoPedido = 'pendiente' | 'preparando' | 'listo' | 'cancelado' | 'liquidado' | 'entregado';
-type FuentePedido = 'mesas' | 'pwa';
+type FuentePedido = 'mesas' | 'pwa' | 'todas';
 
 type PedidoItemHistorial = {
   nombre: string;
@@ -32,6 +32,7 @@ type PedidoHistorial = {
   estado: EstadoPedido;
   nombre_lugar: string; // (Sala o Nombre de Usuario PWA)
   nombre_cliente: string | null; // (name_user o app_user.name)
+  direccion: string;
   notas?: string | null;
   items: PedidoItemHistorial[];
 };
@@ -42,7 +43,7 @@ const PAGE_SIZE = 20;
 
 export default function HistorialPedidos() {
   // ------- filtros -------
-  const [fuente, setFuente] = useState<FuentePedido>('mesas'); // ✨ Filtro de Fuente
+  const [fuente, setFuente] = useState<FuentePedido>('todas'); // ✨ Filtro de Fuente
   const [cliente, setCliente] = useState('');
   const [salaId, setSalaId] = useState<string>('todas');
   const [producto, setProducto] = useState('');
@@ -114,8 +115,13 @@ export default function HistorialPedidos() {
     try {
       if (fuente === 'mesas') {
         await fetchHistorialMesas(opts);
-      } else {
+      } else if (fuente === 'pwa') {
         await fetchHistorialPWA(opts);
+      } else {
+        await Promise.all([
+          fetchHistorialMesas(opts),
+          fetchHistorialPWA(opts),
+        ]);
       }
     } catch (e: any) {
       console.error('[historial] error', e);
@@ -201,6 +207,7 @@ export default function HistorialPedidos() {
         estado: p.estado as EstadoPedido,
         nombre_lugar: mesaNombreById[p.mesa_id] ?? 'Sala Desconocida',
         nombre_cliente: p.name_user,
+        direccion: mesaNombreById[p.mesa_id] ?? 'Sala Desconocida',
         notas: p.notas,
         items: (p.pedido_items || []).map((pi: any) => ({
           nombre: pi.items?.nombre || 'Producto no encontrado',
@@ -210,7 +217,7 @@ export default function HistorialPedidos() {
         }))
       }));
 
-      setRows(unifiedRows);
+      setRows(prev => [...prev, ...unifiedRows]);
       const total = typeof count === 'number' ? count : unifiedRows.length;
       setHasMore(from + unifiedRows.length < total);
       if (opts?.reset) setPage(1);
@@ -238,13 +245,16 @@ export default function HistorialPedidos() {
 
       let query = supabase
         .from('pedidos_pwa')
-        .select(
-          `
+        .select(`
           id,
           estado,
           created_at,
           user_id,
-          app_users ( name ), 
+          app_users (
+            name,
+            direccion_id,
+            direcciones ( nombre )
+          ), 
           pedido_pwa_items (
             item_nombre,
             cantidad
@@ -271,6 +281,7 @@ export default function HistorialPedidos() {
         estado: p.estado as EstadoPedido,
         nombre_lugar: "App",
         nombre_cliente: p.app_users?.name || p.user_id,
+        direccion: p.app_users?.direcciones?.nombre ?? 'Sin dirección',
         notas: null,
         items: (p.pedido_pwa_items || []).map((pi: any) => ({
           nombre: pi.item_nombre,
@@ -327,6 +338,37 @@ export default function HistorialPedidos() {
   
   const isPWA = fuente === 'pwa';
 
+  const descargarExcel = () => {
+    if (!rows.length) {
+      toast({ title: 'Sin datos', description: 'No hay pedidos para exportar' });
+      return;
+    }
+
+    const excelRows = rows.flatMap(p =>
+      p.items.map(it => ({
+        Fuente: p.fuente === 'mesas' ? 'Sala' : 'App',
+        Ubicación: p.nombre_lugar,
+        Dirección: p.direccion,
+        Cliente: p.nombre_cliente ?? '—',
+        Fecha: new Date(p.created_at).toLocaleString(),
+        Estado: p.estado,
+        Producto: it.nombre,
+        Cantidad: it.cantidad,
+        Nota: it.nota ?? '',
+      }))
+    );
+
+    const worksheet = XLSX.utils.json_to_sheet(excelRows);
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Pedidos');
+
+    XLSX.writeFile(
+      workbook,
+      `historial_pedidos_${new Date().toISOString().slice(0, 10)}.xlsx`
+    );
+  };
+
   return (
     <ProtectedRoute>
       <div className="min-h-[60vh]">
@@ -364,6 +406,7 @@ export default function HistorialPedidos() {
                           <SelectValue placeholder="Fuente" />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="todas">Todas</SelectItem>
                           <SelectItem value="mesas">Salas</SelectItem>
                           <SelectItem value="pwa">App</SelectItem>
                         </SelectContent>
@@ -437,6 +480,9 @@ export default function HistorialPedidos() {
                     <Button variant="outline" onClick={onReset}>
                       <RotateCcw className="h-4 w-4 mr-2" />
                       Limpiar
+                    </Button>
+                    <Button variant="outline" onClick={descargarExcel}>
+                      Descargar Excel
                     </Button>
                   </div>
                 </CardContent>
