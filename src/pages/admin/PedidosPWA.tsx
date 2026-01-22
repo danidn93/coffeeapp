@@ -249,7 +249,7 @@ export default function PedidosPWA() {
 
   return (
     <ProtectedRoute>
-      <audio ref={audioRef} src="/assets/notify.mp3" preload="auto" />
+      <audio ref={audioRef} src="/assets/sounds/new-order.mp3" preload="auto" />
 
       <div className="min-h-[60vh]">
         <header className="admin-header border-b border-white/10">
