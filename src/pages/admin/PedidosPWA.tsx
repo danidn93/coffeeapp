@@ -45,6 +45,7 @@ type PedidoPWAItem = {
 
 type PedidoPWA = {
   id: string;
+  user_id: string;
   estado: EstadoPWAPedido;
   created_at: string;
   updated_at: string;
@@ -58,6 +59,7 @@ type PedidoPWA = {
 
 const QUERY = `
   id,
+  user_id,
   estado,
   created_at,
   updated_at,
@@ -345,6 +347,7 @@ function PedidoPWACard({ pedido }: { pedido: PedidoPWA }) {
 
   const handleUpdate = async (estado: EstadoPWAPedido) => {
     setIsUpdating(true);
+
     const { error } = await supabase
       .from('pedidos_pwa')
       .update({ estado })
@@ -357,7 +360,25 @@ function PedidoPWACard({ pedido }: { pedido: PedidoPWA }) {
         variant: 'destructive',
       });
       setIsUpdating(false);
+      return;
     }
+
+    // 🔔 PUSH SOLO CUANDO PASA A "LISTO"
+    if (estado === 'listo') {
+      try {
+        await supabase.functions.invoke('send-push', {
+          body: {
+            user_id: pedido.id, // 👈 OJO: abajo te explico esto
+            title: '☕ Pedido listo',
+            body: 'Tu pedido ya puede ser retirado',
+          },
+        });
+      } catch (e) {
+        console.warn('[PUSH] No se pudo enviar notificación', e);
+      }
+    }
+
+    setIsUpdating(false);
   };
 
   const tiempo = formatDistanceToNow(new Date(pedido.created_at), {
