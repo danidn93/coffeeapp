@@ -178,13 +178,13 @@ const AdminItems = () => {
       setUploadingId(item.id);
 
       const ext = file.name.split('.').pop() || 'jpg';
-      const path = `${item.cafeteria_id}/${item.id}/${Date.now()}.${ext}`;
+      const path = `${item.id}/${Date.now()}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from('productos')
         .upload(path, file, {
-          upsert: true,
           contentType: file.type,
+          cacheControl: '0',
         });
 
       if (uploadError) {
@@ -349,7 +349,7 @@ const AdminItems = () => {
                             <div className="flex items-center gap-2">
                               {producto.image_url ? (
                                 <img
-                                  src={producto.image_url}
+                                  src={`${producto.image_url}?v=${Date.now()}`}
                                   className="h-12 w-12 object-cover rounded ring-1 ring-slate-200"
                                 />
                               ) : (
