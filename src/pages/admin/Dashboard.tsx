@@ -91,6 +91,8 @@ export default function AdminDashboard() {
   const [menusVisitasCount, setMenusVisitasCount] = useState(0);
   const [productosVisitasCount, setProductosVisitasCount] = useState(0);
   const [pedidosMananaCount, setPedidosMananaCount] = useState(0);
+  const [calificacionesCount, setCalificacionesCount] = useState(0);
+
   const [pedidosMananaCatCounters, setPedidosMananaCatCounters] =
     useState<Record<string, number>>({});
 
@@ -112,6 +114,13 @@ export default function AdminDashboard() {
 
     try {
       const queries: any[] = [];
+
+      queries.push(
+        supabase
+          .from('calificaciones_pwa')
+          .select('id', { count: 'exact', head: true })
+          .eq('cafeteria_id', cafeteriaId)
+      );
 
       if (canViewOperaciones) {
         queries.push(
@@ -193,6 +202,7 @@ export default function AdminDashboard() {
           setPedidosMananaCount(0);
         }
       }
+      setCalificacionesCount(results[i++].count ?? 0);
     } catch (e: any) {
       setErrMsg(e?.message || 'Error cargando dashboard');
     } finally {
@@ -220,6 +230,12 @@ export default function AdminDashboard() {
     }
 
     const ch = supabase.channel('dashboard-realtime');
+
+    ch.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'calificaciones_pwa' },
+      fetchAll
+    );
 
     if (canViewOperaciones) {
       ch.on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, fetchAll);
@@ -354,6 +370,20 @@ export default function AdminDashboard() {
                 </Card>
               </Link>
             )}
+
+            <Link to="/admin/calificaciones">
+              <Card className="dashboard-card cursor-pointer ring-2 ring-yellow-400/40">
+                <CardHeader className="flex justify-between">
+                  <CardTitle className="card-title">Calificaciones</CardTitle>
+                  <Star className="h-4 w-4 opacity-80" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {loading ? '—' : calificacionesCount}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
 
             {canViewGestionVisitas && (
               <Link to="/admin/visitas/menu">

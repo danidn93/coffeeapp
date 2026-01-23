@@ -25,6 +25,7 @@ import AdminOnly from '@/components/AdminOnly';
 import GestionDirecciones from './pages/admin/GestionDirecciones';
 import GestionEmpleados from './pages/admin/GestionEmpleados';
 import PedidosPWA from './pages/admin/PedidosPWA';
+import AdminCalificaciones from './pages/admin/Calificaciones';
 
 // NUEVAS PÁGINAS VISITAS
 import ClientVisitas from '@/pages/ClientVisitas';
@@ -67,6 +68,7 @@ export default function App() {
                   </AdminOnly>
                 }
               />
+              <Route path="calificaciones" element={<AdminCalificaciones />} />
               <Route path="direcciones" element={<GestionDirecciones />} />
               <Route path="empleados" element={<GestionEmpleados />} />
               <Route path="pedidos-pwa" element={<PedidosPWA />} />
