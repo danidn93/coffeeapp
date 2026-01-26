@@ -57,7 +57,8 @@ type EmpleadoAutorizado = {
 
 export default function GestionEmpleados() {
   // ✨ Obtenemos el 'user' (para el user_id de la auditoría) y 'isDTH'
-  const { user, isDTH } = useAuth(); 
+  const { user, isDTH, isDAC } = useAuth(); 
+  const canManageEmpleados = isDTH || isDAC;
   const [empleados, setEmpleados] = useState<EmpleadoAutorizado[]>([]);
   const [direcciones, setDirecciones] = useState<Direccion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,10 +106,10 @@ export default function GestionEmpleados() {
   }, [debouncedSearchTerm]); 
 
   useEffect(() => {
-    if (isDTH) {
+    if (canManageEmpleados) {
       fetchAllData();
     }
-  }, [isDTH, fetchAllData]);
+  }, [canManageEmpleados, fetchAllData]);
 
   const openNew = () => {
     setEditData(null);
@@ -147,12 +148,14 @@ export default function GestionEmpleados() {
 
 
   // Renderizado condicional
-  if (!isDTH) {
+  if (!canManageEmpleados) {
     return (
       <ProtectedRoute>
         <div className="container mx-auto px-4 py-8 text-center">
           <h1 className="text-2xl font-bold text-white">Acceso Denegado</h1>
-          <p className="text-white/80">No tienes permisos para ver esta sección (Solo DTH).</p>
+          <p className="text-white/80">
+            No tienes permisos para ver esta sección (DTH o DAC).
+          </p>
           <Link to="/admin">
             <Button variant="outline" className="mt-4">Volver al Dashboard</Button>
           </Link>

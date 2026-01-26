@@ -56,7 +56,7 @@ export default function AdminDashboard() {
    * ============================ */
   const canViewOperaciones = isStaff || isDAC;
   const canViewGestionVisitas = isDAC;
-  const canViewGestionDTH = isDTH;
+  const canViewGestionDTH = [isDTH, isDAC].some(Boolean);
   const canViewGestionDirecciones = isDAC;
 
   /* ============================
