@@ -107,29 +107,235 @@ export default function HistorialPedidos() {
     loadMesas();
   }, []);
 
+  const fetchAllForExport = async (): Promise<PedidoHistorial[]> => {
+    if (!cafeteriaId) return [];
+
+    const results: PedidoHistorial[] = [];
+
+    // ===== MESAS =====
+    if (fuente === 'mesas' || fuente === 'todas') {
+      let queryMesas = supabase
+        .from('pedidos')
+        .select(`
+          id,
+          mesa_id,
+          estado,
+          created_at,
+          name_user,
+          notas,
+          pedido_items (
+            cantidad,
+            nota,
+            items ( nombre, tipo )
+          )
+        `)
+        .eq('cafeteria_id', cafeteriaId)
+        .gte('created_at', fromISO)
+        .lte('created_at', toISO)
+        .order('created_at', { ascending: false });
+
+      if (cliente.trim()) queryMesas = queryMesas.ilike('name_user', `%${cliente.trim()}%`);
+      if (salaId !== 'todas') queryMesas = queryMesas.eq('mesa_id', salaId);
+
+      const { data, error } = await queryMesas;
+      if (error) throw error;
+
+      (data ?? []).forEach((p: any) => {
+        results.push({
+          id: p.id,
+          fuente: 'mesas',
+          created_at: p.created_at,
+          estado: p.estado,
+          nombre_lugar: mesaNombreById[p.mesa_id] ?? 'Sala',
+          nombre_cliente: p.name_user,
+          direccion: mesaNombreById[p.mesa_id] ?? 'Sala',
+          notas: p.notas,
+          items: (p.pedido_items || []).map((pi: any) => ({
+            nombre: pi.items?.nombre ?? 'Producto',
+            cantidad: pi.cantidad,
+            nota: pi.nota,
+            tipo: pi.items?.tipo ?? 'producto',
+          })),
+        });
+      });
+    }
+
+    // ===== PWA =====
+    if (fuente === 'pwa' || fuente === 'todas') {
+      let queryPwa = supabase
+        .from('pedidos_pwa')
+        .select(`
+          id,
+          estado,
+          created_at,
+          app_users (
+            name,
+            direcciones ( nombre )
+          ),
+          pedido_pwa_items (
+            item_nombre,
+            cantidad
+          )
+        `)
+        .eq('cafeteria_id', cafeteriaId)
+        .gte('created_at', fromISO)
+        .lte('created_at', toISO)
+        .order('created_at', { ascending: false });
+
+      const { data, error } = await queryPwa;
+      if (error) throw error;
+
+      (data ?? []).forEach((p: any) => {
+        results.push({
+          id: p.id,
+          fuente: 'pwa',
+          created_at: p.created_at,
+          estado: p.estado,
+          nombre_lugar: 'App',
+          nombre_cliente: p.app_users?.name ?? 'Usuario App',
+          direccion: p.app_users?.direcciones?.nombre ?? 'Sin dirección',
+          notas: null,
+          items: (p.pedido_pwa_items || []).map((pi: any) => ({
+            nombre: pi.item_nombre,
+            cantidad: pi.cantidad,
+            nota: null,
+            tipo: 'pwa',
+          })),
+        });
+      });
+    }
+
+    return results;
+  };
+
   // consulta principal con filtros
   const fetchHistorial = async (opts?: { reset?: boolean }) => {
     setLoading(true);
-    setRows([]); 
-    
+
     try {
-      if (fuente === 'mesas') {
-        await fetchHistorialMesas(opts);
-      } else if (fuente === 'pwa') {
-        await fetchHistorialPWA(opts);
-      } else {
-        await Promise.all([
-          fetchHistorialMesas(opts),
-          fetchHistorialPWA(opts),
-        ]);
+      let allRows: PedidoHistorial[] = [];
+
+      if (fuente === 'mesas' || fuente === 'todas') {
+        const mesas = await fetchHistorialMesasRaw(opts);
+        allRows = allRows.concat(mesas);
       }
+
+      if (fuente === 'pwa' || fuente === 'todas') {
+        const pwa = await fetchHistorialPWARaw(opts);
+        allRows = allRows.concat(pwa);
+      }
+
+      setRows(opts?.reset ? allRows : prev => [...prev, ...allRows]);
+
     } catch (e: any) {
-      console.error('[historial] error', e);
-      toast({ title: 'Error', description: e?.message || 'No se pudo cargar el historial', variant: 'destructive' });
+      console.error('[historial]', e);
+      toast({
+        title: 'Error',
+        description: e?.message ?? 'No se pudo cargar el historial',
+        variant: 'destructive',
+      });
+    } finally {
       setLoading(false);
     }
   };
   
+  const fetchHistorialMesasRaw = async (opts?: { reset?: boolean }) => {
+    const currentPage = opts?.reset ? 1 : page;
+    const from = (currentPage - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    let query = supabase
+      .from('pedidos')
+      .select(`
+        id,
+        mesa_id,
+        estado,
+        created_at,
+        name_user,
+        notas,
+        pedido_items (
+          cantidad,
+          nota,
+          items ( nombre, tipo )
+        )
+      `, { count: 'exact' })
+      .eq('cafeteria_id', cafeteriaId)
+      .gte('created_at', fromISO)
+      .lte('created_at', toISO)
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    setHasMore(from + (data?.length ?? 0) < (count ?? 0));
+
+    return (data ?? []).map((p: any) => ({
+      id: p.id,
+      fuente: 'mesas' as const,
+      created_at: p.created_at,
+      estado: p.estado,
+      nombre_lugar: mesaNombreById[p.mesa_id] ?? 'Sala',
+      nombre_cliente: p.name_user,
+      direccion: mesaNombreById[p.mesa_id] ?? 'Sala',
+      notas: p.notas,
+      items: (p.pedido_items || []).map((pi: any) => ({
+        nombre: pi.items?.nombre,
+        cantidad: pi.cantidad,
+        nota: pi.nota,
+        tipo: pi.items?.tipo,
+      })),
+    }));
+  };
+
+  const fetchHistorialPWARaw = async (opts?: { reset?: boolean }) => {
+    const currentPage = opts?.reset ? 1 : page;
+    const from = (currentPage - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    const { data, error, count } = await supabase
+      .from('pedidos_pwa')
+      .select(`
+        id,
+        estado,
+        created_at,
+        app_users (
+          name,
+          direcciones ( nombre )
+        ),
+        pedido_pwa_items (
+          item_nombre,
+          cantidad
+        )
+      `, { count: 'exact' })
+      .eq('cafeteria_id', cafeteriaId)
+      .gte('created_at', fromISO)
+      .lte('created_at', toISO)
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) throw error;
+
+    setHasMore(from + (data?.length ?? 0) < (count ?? 0));
+
+    return (data ?? []).map((p: any) => ({
+      id: p.id,
+      fuente: 'pwa' as const,
+      created_at: p.created_at,
+      estado: p.estado,
+      nombre_lugar: 'App',
+      nombre_cliente: p.app_users?.name,
+      direccion: p.app_users?.direcciones?.nombre ?? 'Sin dirección',
+      notas: null,
+      items: (p.pedido_pwa_items || []).map((pi: any) => ({
+        nombre: pi.item_nombre,
+        cantidad: pi.cantidad,
+        nota: null,
+        tipo: 'pwa',
+      })),
+    }));
+  };
+
   // --- Lógica de fetch para 'mesas' (Original adaptada) ---
   const fetchHistorialMesas = async (opts?: { reset?: boolean }) => {
       const currentPage = opts?.reset ? 1 : page;
@@ -301,6 +507,7 @@ export default function HistorialPedidos() {
 
   useEffect(() => {
     if (!cafeteriaId) return;
+    setPage(1);
     fetchHistorial({ reset: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFrom, dateTo, fuente, cafeteriaId]);
@@ -332,41 +539,51 @@ export default function HistorialPedidos() {
   };
 
   useEffect(() => {
-    fetchHistorial(); // No resetea en cambio de página
+    if (!cafeteriaId) return;
+    fetchHistorial({ reset: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
   
   const isPWA = fuente === 'pwa';
 
-  const descargarExcel = () => {
-    if (!rows.length) {
-      toast({ title: 'Sin datos', description: 'No hay pedidos para exportar' });
-      return;
+  const descargarExcel = async () => {
+    try {
+      const allRows = await fetchAllForExport();
+
+      if (!allRows.length) {
+        toast({ title: 'Sin datos', description: 'No hay pedidos para exportar' });
+        return;
+      }
+
+      const excelRows = allRows.flatMap(p =>
+        p.items.map(it => ({
+          Fuente: p.fuente === 'mesas' ? 'Sala' : 'App',
+          Ubicación: p.nombre_lugar,
+          Dirección: p.direccion,
+          Cliente: p.nombre_cliente ?? '—',
+          Fecha: new Date(p.created_at).toLocaleString(),
+          Estado: p.estado,
+          Producto: it.nombre,
+          Cantidad: it.cantidad,
+          Nota: it.nota ?? '',
+        }))
+      );
+
+      const worksheet = XLSX.utils.json_to_sheet(excelRows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Pedidos');
+
+      XLSX.writeFile(
+        workbook,
+        `historial_pedidos_${new Date().toISOString().slice(0, 10)}.xlsx`
+      );
+    } catch (e: any) {
+      toast({
+        title: 'Error al exportar',
+        description: e?.message ?? 'No se pudo generar el Excel',
+        variant: 'destructive',
+      });
     }
-
-    const excelRows = rows.flatMap(p =>
-      p.items.map(it => ({
-        Fuente: p.fuente === 'mesas' ? 'Sala' : 'App',
-        Ubicación: p.nombre_lugar,
-        Dirección: p.direccion,
-        Cliente: p.nombre_cliente ?? '—',
-        Fecha: new Date(p.created_at).toLocaleString(),
-        Estado: p.estado,
-        Producto: it.nombre,
-        Cantidad: it.cantidad,
-        Nota: it.nota ?? '',
-      }))
-    );
-
-    const worksheet = XLSX.utils.json_to_sheet(excelRows);
-    const workbook = XLSX.utils.book_new();
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Pedidos');
-
-    XLSX.writeFile(
-      workbook,
-      `historial_pedidos_${new Date().toISOString().slice(0, 10)}.xlsx`
-    );
   };
 
   return (
