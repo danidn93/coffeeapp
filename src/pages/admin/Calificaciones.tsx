@@ -3,7 +3,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 import {
   Card, CardContent, CardDescription, CardHeader, CardTitle
 } from '@/components/ui/card';
@@ -33,6 +41,137 @@ type RowView = {
   } | null;
 };
 
+type Sugerencia = {
+  id: string;
+  mensaje: string;
+  created_at: string;
+  leida: boolean | null;
+  app_users?: {
+    name: string | null;
+  } | null;
+};
+
+function SugerenciasDialog({
+  open,
+  onClose,
+  cafeteriaId,
+}: {
+  open: boolean;
+  onClose: () => void;
+  cafeteriaId: string | null;
+}) {
+  const [rows, setRows] = useState<Sugerencia[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchSugerencias = useCallback(async () => {
+    if (!cafeteriaId) return;
+
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from('sugerencias_pwa')
+      .select(`
+        id,
+        mensaje,
+        created_at,
+        leida,
+        app_users ( name )
+      `)
+      .eq('cafeteria_id', cafeteriaId)
+      .or('leida.is.null,leida.eq.false')
+      .order('created_at', { ascending: false });
+
+    if (!error) setRows(data || []);
+    setLoading(false);
+  }, [cafeteriaId]);
+
+  useEffect(() => {
+    if (open) fetchSugerencias();
+  }, [open, fetchSugerencias]);
+
+  /* Realtime */
+  useEffect(() => {
+    if (!open || !cafeteriaId) return;
+
+    const ch = supabase
+      .channel('sugerencias-admin')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'sugerencias_pwa' },
+        fetchSugerencias
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [open, cafeteriaId, fetchSugerencias]);
+
+  const marcarLeida = async (id: string) => {
+    const { error } = await supabase
+      .from('sugerencias_pwa')
+      .update({ leida: true })
+      .eq('id', id);
+
+    if (!error) {
+      setRows((prev) => prev.filter((r) => r.id !== id));
+      toast({ title: 'Sugerencia marcada como leída' });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl bg-white text-slate-900">
+        <DialogHeader>
+          <DialogTitle>Sugerencias de usuarios</DialogTitle>
+          <DialogDescription>
+            Sugerencias pendientes de revisar
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="max-h-[60vh] overflow-y-auto space-y-3">
+          {loading ? (
+            <div className="text-center py-6">Cargando…</div>
+          ) : rows.length === 0 ? (
+            <div className="text-center py-6 text-slate-500">
+              No hay sugerencias pendientes.
+            </div>
+          ) : (
+            rows.map((s) => (
+              <Card key={s.id} className="border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">
+                    {s.app_users?.name ?? 'Usuario'}
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    {new Date(s.created_at).toLocaleString()}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm whitespace-pre-wrap">{s.mensaje}</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => marcarLeida(s.id)}
+                  >
+                    Marcar como leída
+                  </Button>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cerrar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function AdminCalificaciones() {
   const cafeteriaId = localStorage.getItem(CAFETERIA_LS_KEY);
 
@@ -49,6 +188,7 @@ export default function AdminCalificaciones() {
   const [rows, setRows] = useState<RowView[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [openSugerencias, setOpenSugerencias] = useState(false);
 
   /* ============================
    * KPIs
@@ -265,6 +405,13 @@ export default function AdminCalificaciones() {
                 <Button onClick={handleExportCSV} className="btn-accent">
                   <Download className="mr-2 h-4 w-4" /> Exportar CSV
                 </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setOpenSugerencias(true)}
+                >
+                  <Filter className="mr-2 h-4 w-4" />
+                  Ver sugerencias
+                </Button>
               </div>
 
               {/* KPIs */}
@@ -379,6 +526,11 @@ export default function AdminCalificaciones() {
           </div>
         </main>
       </div>
+      <SugerenciasDialog
+        open={openSugerencias}
+        onClose={() => setOpenSugerencias(false)}
+        cafeteriaId={cafeteriaId}
+      />
     </ProtectedRoute>
-  );
+  );  
 }

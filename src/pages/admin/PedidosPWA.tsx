@@ -57,9 +57,11 @@ type PedidoPWA = {
   updated_at: string;
   calificado: boolean;
   cafeteria_id: string;
-  app_users: {
-    name: string | null;
-  } | null;
+
+  user_name: string | null;
+  is_first: boolean;
+  is_birthday: boolean;
+
   pedido_pwa_items: PedidoPWAItem[];
 };
 
@@ -71,7 +73,9 @@ const QUERY = `
   updated_at,
   calificado,
   cafeteria_id,
-  app_users ( name ),
+  user_name,
+  is_first,
+  is_birthday,
   pedido_pwa_items ( item_nombre, cantidad )
 `;
 
@@ -113,7 +117,7 @@ export default function PedidosPWA() {
     if (!canView || !cafeteriaId) return;
 
     const { data, error } = await supabase
-      .from('pedidos_pwa')
+      .from('pedidos_pwa_view')
       .select(QUERY)
       .eq('cafeteria_id', cafeteriaId)
       .or(
@@ -150,7 +154,7 @@ export default function PedidosPWA() {
     isInitialLoadDone.current = false;
 
     const { data, error } = await supabase
-      .from('pedidos_pwa')
+      .from('pedidos_pwa_view')
       .select(QUERY)
       .eq('cafeteria_id', cafeteriaId)
       .or(
@@ -426,8 +430,14 @@ function PedidoPWACard({ pedido }: { pedido: PedidoPWA }) {
       }`}
     >
       <CardHeader>
-        <CardTitle className="text-lg">
-          {pedido.app_users?.name || 'Usuario Desconocido'}
+        <CardTitle className="text-lg flex items-center gap-2">
+          {pedido.user_name || 'Usuario Desconocido'}
+
+          {pedido.is_first && pedido.is_birthday && (
+            <Badge className="bg-pink-500 text-white">
+              🎉 Primer pedido en su cumpleaños
+            </Badge>
+          )}
         </CardTitle>
         <CardDescription>Pedido {tiempo}</CardDescription>
       </CardHeader>
