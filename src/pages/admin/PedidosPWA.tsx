@@ -147,9 +147,6 @@ export default function PedidosPWA() {
       .from('pedidos_pwa')
       .select(QUERY)
       .eq('cafeteria_id', cafeteriaId)
-      .or(
-        'estado.in.(pendiente,preparando,listo),and(estado.eq.entregado,calificado.eq.false)'
-      )
       .order('created_at', { ascending: true });
 
     if (error) {
