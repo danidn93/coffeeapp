@@ -25,6 +25,12 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 
 const CAFETERIA_LS_KEY = 'cafeteria_activa_id';
 
@@ -147,6 +153,9 @@ export default function PedidosPWA() {
       .from('pedidos_pwa')
       .select(QUERY)
       .eq('cafeteria_id', cafeteriaId)
+      .or(
+        'estado.in.(pendiente,preparando,listo),and(estado.eq.entregado,calificado.eq.false)'
+      )
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -212,18 +221,28 @@ export default function PedidosPWA() {
   }, [canView, cafeteriaId, fetchSilencioso]);
 
   /* =====================================================
-   * Kanban columns
-   * ===================================================== */
+  * Orden global + Kanban columns
+  * ===================================================== */
+  const pedidosOrdenados = useMemo(
+    () =>
+      [...pedidos].sort(
+        (a, b) =>
+          new Date(b.updated_at).getTime() -
+          new Date(a.updated_at).getTime()
+      ),
+    [pedidos]
+  );
+
   const { pendientes, preparando, listos, entregados } = useMemo(
     () => ({
-      pendientes: pedidos.filter((p) => p.estado === 'pendiente'),
-      preparando: pedidos.filter((p) => p.estado === 'preparando'),
-      listos: pedidos.filter((p) => p.estado === 'listo'),
-      entregados: pedidos.filter(
+      pendientes: pedidosOrdenados.filter((p) => p.estado === 'pendiente'),
+      preparando: pedidosOrdenados.filter((p) => p.estado === 'preparando'),
+      listos: pedidosOrdenados.filter((p) => p.estado === 'listo'),
+      entregados: pedidosOrdenados.filter(
         (p) => p.estado === 'entregado' && !p.calificado
       ),
     }),
-    [pedidos]
+    [pedidosOrdenados]
   );
 
   if (!canView) {
@@ -303,12 +322,29 @@ export default function PedidosPWA() {
               icon={<Check className="h-5 w-5" />}
               className="border-emerald-500"
             />
-            <KanbanColumn
-              title="Entregado"
-              pedidos={entregados}
-              icon={<PackageCheck className="h-5 w-5" />}
-              className="border-slate-400"
-            />
+            <div className="flex flex-col gap-4">
+              <Accordion type="single" collapsible>
+                <AccordionItem value="entregados">
+                  <AccordionTrigger
+                    className="text-xl font-aventura text-white/90 flex items-center gap-2 pb-2 border-b-2 border-slate-400"
+                  >
+                    <PackageCheck className="h-5 w-5" />
+                    Entregados
+                    <Badge variant="secondary" className="ml-2">
+                      {entregados.length}
+                    </Badge>
+                  </AccordionTrigger>
+
+                  <AccordionContent className="pt-4">
+                    <div className="flex flex-col gap-4">
+                      {entregados.map((p) => (
+                        <PedidoPWACard key={p.id} pedido={p} />
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </div>
           </div>
         </main>
       </div>
@@ -324,7 +360,7 @@ function KanbanColumn({ title, pedidos, icon, className }: any) {
   return (
     <div className="flex flex-col gap-4">
       <h2
-        className={`text-xl font-aventura text-white/90 flex items-center gap-2 pb-2 border-b-2 ${className}`}
+        className={`h-[44px] text-xl font-aventura text-white/90 flex items-center gap-2 border-b-2 ${className}`}
       >
         {icon}
         {title}

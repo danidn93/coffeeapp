@@ -113,76 +113,112 @@ export default function AdminDashboard() {
     setErrMsg(null);
 
     try {
-      const queries: any[] = [];
-
-      queries.push(
-        supabase
-          .from('calificaciones_pwa')
-          .select('id', { count: 'exact', head: true })
-          .eq('cafeteria_id', cafeteriaId)
-      );
-
-      if (canViewOperaciones) {
-        queries.push(
-          supabase.from('mesas')
+      /* ============================
+      * QUERIES OPERACIONES
+      * ============================ */
+      const qMesas = canViewOperaciones
+        ? supabase
+            .from('mesas')
             .select('id', { count: 'exact', head: true })
             .eq('activa', true)
             .eq('cafeteria_id', cafeteriaId)
-        );
-        queries.push(
-          supabase.from('items')
+        : null;
+
+      const qProductos = canViewOperaciones
+        ? supabase
+            .from('items')
             .select('id', { count: 'exact', head: true })
             .eq('disponible', true)
             .eq('cafeteria_id', cafeteriaId)
-        );
-        queries.push(
-          supabase.from('pedidos')
+        : null;
+
+      const qPedidos = canViewOperaciones
+        ? supabase
+            .from('pedidos')
             .select('id', { count: 'exact', head: true })
             .in('estado', ['pendiente', 'preparando'])
             .eq('cafeteria_id', cafeteriaId)
-        );
-        queries.push(
-          supabase.from('pedidos_pwa')
+        : null;
+
+      const qPedidosPWA = canViewOperaciones
+        ? supabase
+            .from('pedidos_pwa')
             .select('id', { count: 'exact', head: true })
             .eq('estado', 'pendiente')
             .eq('cafeteria_id', cafeteriaId)
-        );
-      }
+        : null;
 
-      if (canViewGestionVisitas) {
-        queries.push(
-          supabase.from('menu_visitas_dias')
+      /* ============================
+      * QUERIES VISITAS
+      * ============================ */
+      const qMenusVisitas = canViewGestionVisitas
+        ? supabase
+            .from('menu_visitas_dias')
             .select('id', { count: 'exact', head: true })
-            .eq('cafeteria_id', 'ffdcee7f-dd24-4209-b7d8-e1557bbb1346')
-        );
-        queries.push(
-          supabase.from('menu_visitas_catalog')
+            .eq('cafeteria_id', cafeteriaId)
+        : null;
+
+      const qProductosVisitas = canViewGestionVisitas
+        ? supabase
+            .from('menu_visitas_catalog')
             .select('id', { count: 'exact', head: true })
-            .eq('cafeteria_id', 'ffdcee7f-dd24-4209-b7d8-e1557bbb1346')
-        );
-      }
+            .eq('cafeteria_id', cafeteriaId)
+        : null;
 
-      const results = await Promise.all(queries);
-      let i = 0;
+      /* ============================
+      * QUERIES CALIFICACIONES
+      * ============================ */
+      const qCalificaciones = supabase
+        .from('calificaciones_pwa')
+        .select('id', { count: 'exact', head: true })
+        .eq('cafeteria_id', cafeteriaId);
 
+      /* ============================
+      * EJECUCIÓN PARALELA
+      * ============================ */
+      const [
+        rMesas,
+        rProductos,
+        rPedidos,
+        rPedidosPWA,
+        rMenusVisitas,
+        rProductosVisitas,
+        rCalificaciones,
+      ] = await Promise.all([
+        qMesas,
+        qProductos,
+        qPedidos,
+        qPedidosPWA,
+        qMenusVisitas,
+        qProductosVisitas,
+        qCalificaciones,
+      ]);
+
+      /* ============================
+      * SETEOS SEGUROS
+      * ============================ */
       if (canViewOperaciones) {
-        setMesasActivas(results[i++].count ?? 0);
-        setProductosCount(results[i++].count ?? 0);
-        setPedidosActivos(results[i++].count ?? 0);
+        setMesasActivas(rMesas?.count ?? 0);
+        setProductosCount(rProductos?.count ?? 0);
+        setPedidosActivos(rPedidos?.count ?? 0);
 
-        const newPWA = results[i++].count ?? 0;
-        setPedidosPWAActivos(newPWA);
+        const nuevosPWA = rPedidosPWA?.count ?? 0;
+        setPedidosPWAActivos(nuevosPWA);
 
-        if (audioRef.current && newPWA > lastPWAActivos.current) {
+        if (
+          audioRef.current &&
+          nuevosPWA > lastPWAActivos.current
+        ) {
           audioRef.current.currentTime = 0;
           void audioRef.current.play();
         }
-        lastPWAActivos.current = newPWA;
+
+        lastPWAActivos.current = nuevosPWA;
       }
 
       if (canViewGestionVisitas) {
-        setMenusVisitasCount(results[i++].count ?? 0);
-        setProductosVisitasCount(results[i++].count ?? 0);
+        setMenusVisitasCount(rMenusVisitas?.count ?? 0);
+        setProductosVisitasCount(rProductosVisitas?.count ?? 0);
 
         const { data: diaManana } = await supabase
           .from('menu_visitas_dias')
@@ -202,14 +238,20 @@ export default function AdminDashboard() {
           setPedidosMananaCount(0);
         }
       }
-      setCalificacionesCount(results[i++].count ?? 0);
+
+      setCalificacionesCount(rCalificaciones?.count ?? 0);
     } catch (e: any) {
       setErrMsg(e?.message || 'Error cargando dashboard');
     } finally {
       setLoading(false);
       inFlightRef.current = false;
     }
-  }, [cafeteriaId, canViewOperaciones, canViewGestionVisitas, tomorrowISO]);
+  }, [
+    cafeteriaId,
+    canViewOperaciones,
+    canViewGestionVisitas,
+    tomorrowISO,
+  ]);
 
   // 🔥 REFETCH INMEDIATO CUANDO CAMBIA LA CAFETERÍA
   useEffect(() => {
