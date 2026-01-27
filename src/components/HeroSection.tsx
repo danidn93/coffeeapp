@@ -1,3 +1,4 @@
+//src/components/HeroSection.tsx
 import { useEffect, useState } from "react";
 import { MapPin, Clock, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";

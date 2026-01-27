@@ -346,7 +346,7 @@ export default function AdminCalificaciones() {
         ...rows.map(r =>
           [
             new Date(r.created_at).toLocaleString().replace(',', ''),
-            (r.app_users?.name ?? '').replace(',', ' '),
+            (r.estrellas <= 3 ? 'Anónimo' : (r.app_users?.name ?? '')).replace(',', ' ')
             r.app_users?.role ?? '',
             r.estrellas,
             JSON.stringify(r.comentario ?? '').replace(',', ' ')
@@ -496,8 +496,11 @@ export default function AdminCalificaciones() {
                         rows.map(r => (
                           <tr key={r.id} className="border-b text-black">
                             <td>{new Date(r.created_at).toLocaleString()}</td>
-                            <td>{r.app_users?.name ?? '—'}</td>
-                            
+                            <td>
+                              {r.estrellas <= 3
+                                ? 'Anónimo'
+                                : r.app_users?.name ?? '—'}
+                            </td>                            
                             <td>{r.estrellas}</td>
                             <td className="max-w-[520px] whitespace-pre-wrap">{r.comentario ?? '—'}</td>
                           </tr>
