@@ -346,7 +346,7 @@ export default function AdminCalificaciones() {
         ...rows.map(r =>
           [
             new Date(r.created_at).toLocaleString().replace(',', ''),
-            (r.estrellas <= 3 ? 'Anónimo' : (r.app_users?.name ?? '')).replace(',', ' ')
+            (r.app_users?.name ?? '').replace(',', ' '),
             r.app_users?.role ?? '',
             r.estrellas,
             JSON.stringify(r.comentario ?? '').replace(',', ' ')
