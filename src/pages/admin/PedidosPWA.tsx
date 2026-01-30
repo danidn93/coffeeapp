@@ -22,6 +22,7 @@ import {
   Package,
   Send,
   PackageCheck,
+  Trash2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -381,6 +382,7 @@ function KanbanColumn({ title, pedidos, icon, className }: any) {
 
 function PedidoPWACard({ pedido }: { pedido: PedidoPWA }) {
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const handleUpdate = async (estado: EstadoPWAPedido) => {
     setIsUpdating(true);
@@ -418,6 +420,26 @@ function PedidoPWACard({ pedido }: { pedido: PedidoPWA }) {
     setIsUpdating(false);
   };
 
+  const handleDelete = async () => {
+    setIsUpdating(true);
+
+    const { error } = await supabase
+      .from('pedidos_pwa')
+      .delete()
+      .eq('id', pedido.id);
+
+    if (error) {
+      toast({
+        title: 'Error al eliminar',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+
+    setIsUpdating(false);
+    setShowDeleteModal(false);
+  };
+
   const tiempo = formatDistanceToNow(new Date(pedido.created_at), {
     addSuffix: true,
     locale: es,
@@ -429,7 +451,49 @@ function PedidoPWACard({ pedido }: { pedido: PedidoPWA }) {
         pedido.estado === 'entregado' ? 'opacity-60' : ''
       }`}
     >
-      <CardHeader>
+    {showDeleteModal && (
+      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl p-6 w-[90%] max-w-md shadow-lg">
+          <h3 className="text-lg font-semibold text-slate-900">
+            Confirmar eliminación
+          </h3>
+          <p className="text-sm text-slate-600 mt-2">
+            ¿Seguro que deseas eliminar este pedido? Esta acción no se puede deshacer.
+          </p>
+
+          <div className="flex justify-end gap-3 mt-6 text-white">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteModal(false)}
+            >
+              Cancelar
+            </Button>
+
+            <Button
+              onClick={handleDelete}
+              disabled={isUpdating}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Eliminar pedido
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
+
+      <CardHeader className="relative">
+        {pedido.estado === 'pendiente' && (
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => setShowDeleteModal(true)}
+            disabled={isUpdating}
+            className="absolute top-3 right-3 text-red-500 hover:text-red-700 hover:bg-red-50"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
+
         <CardTitle className="text-lg flex items-center gap-2">
           {pedido.user_name || 'Usuario Desconocido'}
 
@@ -493,5 +557,6 @@ function PedidoPWACard({ pedido }: { pedido: PedidoPWA }) {
         )}
       </CardFooter>
     </Card>
+    
   );
 }
