@@ -58,6 +58,7 @@ type EmpleadoAutorizado = {
   telefono: string | null;
   direccion_id: string;
   fecha_nacimiento: string | null;
+  retirado?: boolean;
   direcciones?: { nombre: string; slug: string | null } | null;
 };
 
@@ -106,7 +107,7 @@ export default function GestionEmpleados() {
 
       let query = supabase
         .from('empleados_autorizados')
-        .select('*, direcciones(nombre, slug)')
+        .select('id,email,nombre_completo,telefono,direccion_id,fecha_nacimiento,retirado, direcciones(nombre, slug)')
         .order('nombre_completo');
 
       if (debouncedSearchTerm) {
@@ -239,7 +240,7 @@ export default function GestionEmpleados() {
             <CardHeader>
               <CardTitle>Empleados autorizados</CardTitle>
               <CardDescription>Usuarios permitidos para registrarse en la PWA</CardDescription>
-              <div className="relative pt-4" >
+              <div className="relative pt-4">
                 <Search className="absolute left-2.5 top-[2.2rem] h-4 w-4 text-slate-500" />
                 <Input
                   className="pl-8"
@@ -277,8 +278,17 @@ export default function GestionEmpleados() {
                     </TableRow>
                   ) : (
                     empleados.map((emp) => (
-                      <TableRow key={emp.id}>
-                        <TableCell>{emp.nombre_completo}</TableCell>
+                      <TableRow key={emp.id} className={emp.retirado ? 'opacity-70' : ''}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span>{emp.nombre_completo}</span>
+                            {emp.retirado ? (
+                              <span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">
+                                Retirado
+                              </span>
+                            ) : null}
+                          </div>
+                        </TableCell>
                         <TableCell>{emp.email}</TableCell>
                         <TableCell>{emp.direcciones?.nombre || 'N/A'}</TableCell>
                         <TableCell>{emp.telefono || 'N/A'}</TableCell>
@@ -287,11 +297,7 @@ export default function GestionEmpleados() {
                             <Edit className="h-4 w-4" />
                           </Button>
 
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => handleViewAppUser(emp.email)}
-                          >
+                          <Button size="icon" variant="ghost" onClick={() => handleViewAppUser(emp.email)}>
                             <User className="h-4 w-4" />
                           </Button>
 
@@ -310,10 +316,7 @@ export default function GestionEmpleados() {
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  className="bg-red-600"
-                                  onClick={() => handleDeleteConfirm(emp)}
-                                >
+                                <AlertDialogAction className="bg-red-600" onClick={() => handleDeleteConfirm(emp)}>
                                   Eliminar
                                 </AlertDialogAction>
                               </AlertDialogFooter>
@@ -404,6 +407,7 @@ function EmpleadoAutorizadoModal({
           telefono: '',
           direccion_id: undefined,
           fecha_nacimiento: '',
+          retirado: false,
         }
       );
     }
@@ -411,6 +415,7 @@ function EmpleadoAutorizadoModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!adminUserId || !formData.email || !formData.nombre_completo || !formData.direccion_id) {
       toast({ title: 'Campos obligatorios faltantes', variant: 'destructive' });
       return;
@@ -422,7 +427,7 @@ function EmpleadoAutorizadoModal({
       ? 'update_empleado_autorizado_y_sincronizar'
       : 'create_empleado_autorizado';
 
-    const payload = {
+    const payload: any = {
       p_admin_user_id: adminUserId,
       p_empleado_id: empleado?.id,
       p_email: formData.email,
@@ -432,17 +437,42 @@ function EmpleadoAutorizadoModal({
       p_fecha_nacimiento: formData.fecha_nacimiento || null,
     };
 
+    // 1) Guardar/actualizar empleado
     const { error } = await supabase.rpc(rpc, payload);
 
-    setIsSubmitting(false);
-
     if (error) {
+      setIsSubmitting(false);
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Guardado correctamente' });
-      onSave();
-      onClose();
+      return;
     }
+
+    // 2) Si es edición y cambió "retirado" → sincronizar con app_users
+    if (
+      empleado &&
+      typeof formData.retirado === 'boolean' &&
+      formData.retirado !== !!empleado.retirado
+    ) {
+      const { error: retiroError } = await supabase.rpc('set_empleado_retirado_y_sincronizar', {
+        p_admin_user_id: adminUserId,
+        p_empleado_id: empleado.id,
+        p_retirado: formData.retirado,
+      });
+
+      if (retiroError) {
+        setIsSubmitting(false);
+        toast({
+          title: 'Error al sincronizar retiro',
+          description: retiroError.message,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    setIsSubmitting(false);
+    toast({ title: 'Guardado correctamente' });
+    onSave();
+    onClose();
   };
 
   return (
@@ -485,12 +515,25 @@ function EmpleadoAutorizadoModal({
             </SelectContent>
           </Select>
 
+          {/* Retirado: solo edición */}
+          {empleado ? (
+            <div className="flex items-center gap-2 pt-2">
+              <input
+                id="retirado"
+                type="checkbox"
+                checked={!!formData.retirado}
+                onChange={(e) => setFormData({ ...formData, retirado: e.target.checked })}
+              />
+              <Label htmlFor="retirado">Empleado retirado</Label>
+            </div>
+          ) : null}
+
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline">Cancelar</Button>
             </DialogClose>
             <Button disabled={isSubmitting} className="btn-accent">
-              Guardar
+              {isSubmitting ? 'Guardando...' : 'Guardar'}
             </Button>
           </DialogFooter>
         </form>
