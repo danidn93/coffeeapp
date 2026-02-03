@@ -109,15 +109,24 @@ const ClientMesa = () => {
     let cancelled = false;
     (async () => {
       try {
+        
+
+        // 2) ¿Mesa válida/activa con token correcto?
+        const mesaData = await validateMesaAndToken();
+        if (!mesaData) {
+          navigate('/landing?alert=sala-inactiva', { replace: true });
+          return;
+        }
+
+        // 3) Items (USAR cafeteria_id REAL)
+        await fetchItems(mesaData.cafeteria_id);
+
         // 1) ¿Local abierto?
         const { data, error } = await supabase
           .from('configuracion')
           .select('abierto')
-          .order('updated_at', { ascending: false })
-          .limit(1)
+          .eq('id', mesaData.cafeteria_id)
           .maybeSingle();
-
-        if (cancelled) return;
 
         const abierto = error ? true : (data?.abierto ?? true);
         if (!abierto) {
@@ -125,15 +134,6 @@ const ClientMesa = () => {
           return;
         }
 
-        // 2) ¿Mesa válida/activa con token correcto?
-        const ok = await validateMesaAndToken();
-        if (!ok) {
-          navigate('/landing?alert=sala-inactiva', { replace: true });
-          return;
-        }
-
-        // 3) Items
-        await fetchItems();
       } catch {
         navigate('/landing?alert=sala-inactiva', { replace: true });
       }
@@ -143,37 +143,38 @@ const ClientMesa = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, token]);
 
-  const validateMesaAndToken = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('mesas')
-        .select('*')
-        .eq('slug', slug)
-        .eq('token', token)
-        .eq('activa', true)
-        .maybeSingle();
+  const validateMesaAndToken = async (): Promise<Mesa | null> => {
+    const { data, error } = await supabase
+      .from('mesas')
+      .select('*')
+      .eq('slug', slug)
+      .eq('token', token)
+      .eq('activa', true)
+      .maybeSingle();
 
-      if (error || !data) return false;
-      setMesa(data as Mesa);
-      return true;
-    } catch {
-      return false;
-    }
+    if (error || !data) return null;
+
+    setMesa(data as Mesa);
+    return data as Mesa;
   };
 
-  const fetchItems = async () => {
+  const fetchItems = async (cafeteriaId: string) => {
     try {
       const { data, error } = await supabase
         .from('items')
         .select('*')
         .eq('disponible', true)
-        .eq('cafeteria_id', mesa.cafeteria_id)
+        .eq('cafeteria_id', cafeteriaId)
         .order('tipo', { ascending: true });
 
       if (error) throw error;
       setItems((data as Item[]) || []);
     } catch (error) {
-      toast({ title: 'Error', description: 'No se pudieron cargar los items', variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los items',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
