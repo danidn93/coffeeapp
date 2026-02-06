@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
 import { ArrowLeft, ImagePlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 const CAFETERIA_LS_KEY = 'cafeteria_activa_id';
 
@@ -37,6 +38,10 @@ export default function AdminConfiguracion() {
   const [horarioText, setHorarioText] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const { user } = useAuth();
+
+  const isAdmin = user?.role === 'admin';
 
   const [cafeteriaId, setCafeteriaId] = useState<string | null>(
     () => localStorage.getItem(CAFETERIA_LS_KEY)
@@ -156,6 +161,15 @@ export default function AdminConfiguracion() {
   ) => {
     if (!cafeteriaId) return;
 
+    if (!isAdmin) {
+      toast({
+        title: 'Acceso restringido',
+        description: 'Solo administradores pueden cambiar imágenes',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       const base64 = await fileToBase64(file);
 
@@ -169,9 +183,10 @@ export default function AdminConfiguracion() {
       const { error } = await supabase
         .from('configuracion')
         .update(patch)
-        .eq('id', cafeteriaId);
 
       if (error) throw error;
+
+      await fetchConfig();
 
       setConf(c => (c ? { ...c, ...(patch as any) } : c));
 
@@ -285,7 +300,8 @@ export default function AdminConfiguracion() {
                         />
                         <Button
                           variant="outline"
-                          onClick={() => fileLogo.current?.click()}
+                          onClick={() => isAdmin && fileLogo.current?.click()}
+                          disabled={!isAdmin}
                           className="btn-white-hover"
                         >
                           <ImagePlus className="h-4 w-4 mr-2" /> Subir logo
@@ -314,7 +330,8 @@ export default function AdminConfiguracion() {
                         />
                         <Button
                           variant="outline"
-                          onClick={() => fileHero.current?.click()}
+                          onClick={() => isAdmin && fileHero.current?.click()}
+                          disabled={!isAdmin}
                           className="btn-white-hover"
                         >
                           <ImagePlus className="h-4 w-4 mr-2" /> Subir fondo
@@ -346,7 +363,8 @@ export default function AdminConfiguracion() {
 
                         <Button
                           variant="outline"
-                          onClick={() => fileMovil.current?.click()}
+                          onClick={() => isAdmin && fileMovil.current?.click()}
+                          disabled={!isAdmin}
                           className="btn-white-hover"
                         >
                           <ImagePlus className="h-4 w-4 mr-2" /> Subir fondo móvil
