@@ -26,6 +26,7 @@ import GestionDirecciones from './pages/admin/GestionDirecciones';
 import GestionEmpleados from './pages/admin/GestionEmpleados';
 import PedidosPWA from './pages/admin/PedidosPWA';
 import AdminCalificaciones from './pages/admin/Calificaciones';
+import AdminCafeterias from './pages/admin/Cafeterias';
 
 // NUEVAS PÁGINAS VISITAS
 import ClientVisitas from '@/pages/ClientVisitas';
@@ -72,6 +73,7 @@ export default function App() {
               <Route path="direcciones" element={<GestionDirecciones />} />
               <Route path="empleados" element={<GestionEmpleados />} />
               <Route path="pedidos-pwa" element={<PedidosPWA />} />
+              <Route path="cafeterias" element={<AdminCafeterias />} />
 
               {/* MÓDULO VISITAS */}
               <Route

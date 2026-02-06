@@ -51,13 +51,16 @@ function plusDaysLocalISO(days: number) {
 export default function AdminDashboard() {
   const { user, isDAC, isDTH, isStaff } = useAuth();
 
+  const isSuperAdmin = user?.username === 'darmijoss1';
+
   /* ============================
    * PERMISOS (AJUSTADOS)
    * ============================ */
   const canViewOperaciones = isStaff || isDAC;
   const canViewGestionVisitas = isDAC;
-  const canViewGestionDTH = [isDTH, isDAC].some(Boolean);
-  const canViewGestionDirecciones = isDAC;
+  const canViewGestionDTH = isSuperAdmin;
+  const canViewGestionDirecciones = isSuperAdmin;
+  const canViewGestionCafeterias = isSuperAdmin;
 
   /* ============================
    * CAFETERÍA ACTIVA (REACTIVA)
@@ -340,6 +343,17 @@ export default function AdminDashboard() {
                 <Card className="dashboard-card cursor-pointer ring-2 ring-blue-500/50">
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle className="card-title">Gestión de Direcciones (DAC)</CardTitle>
+                    <Building className="h-4 w-4 opacity-80" />
+                  </CardHeader>
+                </Card>
+              </Link>
+            )}
+
+            {canViewGestionCafeterias && (
+              <Link to="/admin/cafeterias">
+                <Card className="dashboard-card cursor-pointer ring-2 ring-purple-500/50">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle className="card-title">Gestión de Cafeterías</CardTitle>
                     <Building className="h-4 w-4 opacity-80" />
                   </CardHeader>
                 </Card>
