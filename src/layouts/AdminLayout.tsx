@@ -2,7 +2,6 @@ import { Outlet, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Bell, Clock, LogOut } from 'lucide-react';
-import adminBg from '/assets/admin-bg-ordinario.png';
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Switch } from '@/components/ui/switch';
@@ -15,6 +14,8 @@ type Config = {
   abierto: boolean;
   nombre_local?: string | null;
   logo_url?: string | null;
+  hero_bg_url?: string | null;
+  movil_bg?: string | null;
 };
 
 type Cafeteria = {
@@ -165,7 +166,13 @@ export default function AdminLayout() {
       <div className="fixed inset-0 -z-10">
         <div
           className="h-full w-full bg-center bg-cover bg-no-repeat bg-fixed"
-          style={{ backgroundImage: `url(${adminBg})` }}
+          style={{
+            backgroundImage: `url(${
+              window.innerWidth < 768
+                ? conf?.movil_bg || conf?.hero_bg_url || '/assets/admin-bg-ordinario.png'
+                : conf?.hero_bg_url || '/assets/admin-bg-ordinario.png'
+            })`,
+          }}
         />
         <div className="absolute inset-0 bg-[hsl(200_100%_13.5%/_0.88)]" />
       </div>

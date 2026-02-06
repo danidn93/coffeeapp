@@ -13,10 +13,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
-// fondos / branding
-import adminBg from '/assets/movil-bg-ordinario.png'; //Cambiar según la ocasión
-import adminBgDesktop from '/assets/admin-bg-ordinario.png'; //Cambiar según la ocasión
-import logo from '/assets/logo-admin-ordinario.png'; //Cambiar según la ocasión
+type Config = {
+  logo_url?: string | null;
+  hero_bg_url?: string | null;
+  movil_bg?: string | null;
+};
 
 interface Mesa {
   id: string;
@@ -50,6 +51,7 @@ const ClientMesa = () => {
   const { slug } = useParams();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('t') || '';
+  const [branding, setBranding] = useState<Config | null>(null);
 
   const [mesa, setMesa] = useState<Mesa | null>(null);
   const [items, setItems] = useState<Item[]>([]);
@@ -80,48 +82,34 @@ const ClientMesa = () => {
     } catch {}
   }, [slug, token]);
 
-  // === Fondo responsivo (móvil vs desktop) ===
-  const [bgUrl, setBgUrl] = useState<string>(adminBg);
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1024px)');
-    const apply = () => setBgUrl(mq.matches ? adminBgDesktop : adminBg);
-    apply();
-    if (mq.addEventListener) {
-      mq.addEventListener('change', apply);
-      return () => mq.removeEventListener('change', apply);
-    } else {
-      // @ts-ignore
-      mq.addListener(apply);
-      return () => {
-        // @ts-ignore
-        mq.removeListener(apply);
-      };
-    }
-  }, []);
-
-  useEffect(() => {
-    // Si faltan parámetros, redirige con alerta
     if (!slug || !token) {
       navigate('/landing?alert=mesa-invalida', { replace: true });
       return;
     }
 
     let cancelled = false;
-    (async () => {
-      try {
-        
 
-        // 2) ¿Mesa válida/activa con token correcto?
-        const mesaData = await validateMesaAndToken();
+    (async () => {
+      let mesaData: Mesa | null = null;
+
+      try {
+        // 1) Validar mesa + token
+        mesaData = await validateMesaAndToken();
+        const { data: conf } = await supabase
+          .from('configuracion')
+          .select('logo_url,hero_bg_url,movil_bg')
+          .eq('id', mesaData.cafeteria_id)
+          .maybeSingle();
+
+        setBranding(conf as Config);
+
         if (!mesaData) {
           navigate('/landing?alert=sala-inactiva', { replace: true });
           return;
         }
 
-        // 3) Items (USAR cafeteria_id REAL)
-        await fetchItems(mesaData.cafeteria_id);
-
-        // 1) ¿Local abierto?
+        // 2) Verificar si la cafetería está abierta
         const { data, error } = await supabase
           .from('configuracion')
           .select('abierto')
@@ -130,17 +118,24 @@ const ClientMesa = () => {
 
         const abierto = error ? true : (data?.abierto ?? true);
         if (!abierto) {
-          navigate('/landing?alert=local-cerrado', { replace: true });
+          navigate(`/landing?alert=local-cerrado&c=${mesaData.cafeteria_id}`, { replace: true });
           return;
         }
 
-      } catch {
-        navigate('/landing?alert=sala-inactiva', { replace: true });
+        // 3) Cargar items de ESA cafetería
+        await fetchItems(mesaData.cafeteria_id);
+
+      } catch (e) {
+        if (mesaData?.cafeteria_id) {
+          navigate(`/landing?alert=sala-inactiva&c=${mesaData.cafeteria_id}`, { replace: true });
+        } else {
+          navigate('/landing?alert=sala-inactiva', { replace: true });
+        }
       }
     })();
 
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, token]);
 
   const validateMesaAndToken = async (): Promise<Mesa | null> => {
@@ -413,7 +408,13 @@ const ClientMesa = () => {
       <div className="fixed inset-0 -z-10">
         <div
           className="h-full w-full bg-no-repeat bg-center bg-cover"
-          style={{ backgroundImage: `url(${bgUrl})` }}
+          style={{
+            backgroundImage: `url(${
+              window.innerWidth < 768
+                ? branding?.movil_bg || branding?.hero_bg_url
+                : branding?.hero_bg_url
+            })`,
+          }}
         />
         <div className="absolute inset-0 bg-black/25" />
       </div>
@@ -422,7 +423,7 @@ const ClientMesa = () => {
       <header className="sticky top-0 z-20 border-b bg-white/80 backdrop-blur-md">
         <div className="container mx-auto px-4 py-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <img src={logo} alt="Logo" className="h-9 w-9 rounded object-contain" />
+            <img src={branding?.logo_url || undefined} alt="Logo" className="h-9 w-9 rounded object-contain" />
             <div>
               <h1 className="text-base md:text-lg font-semibold leading-tight">
                 <span className="font-bold">{mesa.nombre}</span>

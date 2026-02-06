@@ -21,7 +21,16 @@ type Config = {
   horario_arr?: string[] | null;
   logo_url?: string | null;
   hero_bg_url?: string | null;
+  movil_bg?: string | null;
 };
+
+const fileToBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
 export default function AdminConfiguracion() {
   const [conf, setConf] = useState<Config | null>(null);
@@ -35,6 +44,7 @@ export default function AdminConfiguracion() {
 
   const fileLogo = useRef<HTMLInputElement | null>(null);
   const fileHero = useRef<HTMLInputElement | null>(null);
+  const fileMovil = useRef<HTMLInputElement | null>(null);
 
   /* ======================================================
    * Escuchar cambio de cafetería (SIN REFRESH)
@@ -140,41 +150,42 @@ export default function AdminConfiguracion() {
   /* ======================================================
    * Subida de imágenes (logo / fondo)
    * ====================================================== */
-  const upFile = async (file: File, kind: 'logo' | 'hero') => {
+  const upFile = async (
+    file: File,
+    kind: 'logo' | 'hero' | 'movil'
+  ) => {
     if (!cafeteriaId) return;
 
     try {
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-      const path = `${cafeteriaId}/${kind}-${Date.now()}.${ext}`;
+      const base64 = await fileToBase64(file);
 
-      const { error: upErr } = await supabase.storage
-        .from('branding')
-        .upload(path, file, { upsert: true });
-      if (upErr) throw upErr;
-
-      const { data } = supabase.storage.from('branding').getPublicUrl(path);
       const patch =
         kind === 'logo'
-          ? { logo_url: data.publicUrl }
-          : { hero_bg_url: data.publicUrl };
+          ? { logo_url: base64 }
+          : kind === 'hero'
+          ? { hero_bg_url: base64 }
+          : { movil_bg: base64 };
 
-      const { error: updErr } = await supabase
+      const { error } = await supabase
         .from('configuracion')
         .update(patch)
         .eq('id', cafeteriaId);
-      if (updErr) throw updErr;
+
+      if (error) throw error;
 
       setConf(c => (c ? { ...c, ...(patch as any) } : c));
-      toast({ title: 'Imagen actualizada' });
-    } catch (e: any) {
+
+      toast({ title: 'Imagen guardada' });
+    } catch (e) {
       toast({
         title: 'Error',
-        description: 'Subida fallida',
+        description: 'No se pudo guardar la imagen',
         variant: 'destructive',
       });
     } finally {
       if (fileLogo.current) fileLogo.current.value = '';
       if (fileHero.current) fileHero.current.value = '';
+      if (fileMovil.current) fileMovil.current.value = '';
     }
   };
 
@@ -250,7 +261,7 @@ export default function AdminConfiguracion() {
                     </div>
                   </div>
 
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 md:grid-cols-3">
                     <div className="space-y-2">
                       <Label className="text-white/90">Logo</Label>
                       <div className="flex items-center gap-3">
@@ -283,7 +294,7 @@ export default function AdminConfiguracion() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-white/90">Fondo</Label>
+                      <Label className="text-white/90">Fondo Escritorio</Label>
                       <div className="flex items-center gap-3">
                         {conf.hero_bg_url && (
                           <img
@@ -310,6 +321,39 @@ export default function AdminConfiguracion() {
                         </Button>
                       </div>
                     </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-white/90">Fondo móvil</Label>
+
+                      <div className="flex items-center gap-3">
+                        {conf.movil_bg && (
+                          <img
+                            src={conf.movil_bg}
+                            className="h-14 w-24 rounded object-cover ring-1 ring-white/30"
+                          />
+                        )}
+
+                        <input
+                          ref={fileMovil}
+                          type="file"
+                          accept="image/*"
+                          hidden
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) upFile(f, 'movil');
+                          }}
+                        />
+
+                        <Button
+                          variant="outline"
+                          onClick={() => fileMovil.current?.click()}
+                          className="btn-white-hover"
+                        >
+                          <ImagePlus className="h-4 w-4 mr-2" /> Subir fondo móvil
+                        </Button>
+                      </div>
+                    </div>
+
                   </div>
 
                   <div className="pt-4">

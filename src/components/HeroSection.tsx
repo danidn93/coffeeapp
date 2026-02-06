@@ -1,45 +1,108 @@
-//src/components/HeroSection.tsx
 import { useEffect, useState } from "react";
-import { MapPin, Clock, Phone } from "lucide-react";
+import { MapPin, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
-type Config = {
-  nombre_local?: string | null;
-  direccion?: string | null;
-  telefono?: string | null;
-  horario?: string | null;
-  hero_bg_url?: string | null;
-  horario_arr?: string[] | null;
+/* =========================
+   Props
+========================= */
+type HeroSectionProps = {
+  cafeteriaId?: string | null;
 };
 
-const HeroSection = () => {
+/* =========================
+   Tipos
+========================= */
+type Config = {
+  nombre_local: string | null;
+  direccion: string | null;
+  telefono: string | null;
+  horario: string | null;
+  hero_bg_url: string | null;
+  horario_arr: unknown; // ⚠️ jsonb → se normaliza luego
+};
+
+/* =========================
+   Componente
+========================= */
+const HeroSection = ({ cafeteriaId }: HeroSectionProps) => {
   const [conf, setConf] = useState<Config | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from("configuracion")
-        .select("nombre_local,direccion,horario,horario_arr,hero_bg_url")
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      setConf((data as any) || null);
-    })();
-  }, []);
+    let alive = true;
 
-  const nombre = (conf?.nombre_local || "COFFE APP").toUpperCase();
+    (async () => {
+      setLoading(true);
+
+      let query = supabase
+        .from("configuracion")
+        .select(
+          "id,nombre_local,direccion,telefono,horario,horario_arr,hero_bg_url"
+        );
+
+      // 🟢 Cafetería específica
+      if (cafeteriaId) {
+        query = query.eq("id", cafeteriaId).limit(1);
+      }
+      // 🔵 Fallback: última configuración
+      else {
+        query = query.order("updated_at", { ascending: false }).limit(1);
+      }
+
+      const { data, error } = await query.maybeSingle<Config>();
+
+      if (!alive) return;
+
+      if (!error && data) {
+        setConf(data);
+      } else {
+        setConf(null);
+      }
+
+      setLoading(false);
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [cafeteriaId]);
+
+  /* =========================
+     Normalización segura
+  ========================= */
+
+  const nombre = (conf?.nombre_local || "CAFETERÍA").toUpperCase();
   const dir = conf?.direccion || "Av. Principal 123, Centro Histórico";
-  const tel = conf?.telefono || "+1 (555) 123-4567";
-  const bg  = conf?.hero_bg_url || "/assets/hero-bar.png";
-  const lines: string[] =
-    conf?.horario_arr?.length
-      ? conf.horario_arr!
-      : (conf?.horario ? conf.horario.split(/\r?\n/).map(s => s.trim()).filter(Boolean) : []);
+  const bg = conf?.hero_bg_url || "/assets/hero-bar.png";
+
+  // 🔑 NORMALIZACIÓN REAL DE horario_arr (jsonb)
+  let lines: string[] = [];
+
+  if (Array.isArray(conf?.horario_arr)) {
+    lines = conf!.horario_arr.map(String);
+  } else if (conf?.horario) {
+    lines = conf.horario
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  /* =========================
+     Render
+  ========================= */
+
+  if (loading) {
+    return (
+      <section className="min-h-screen flex items-center justify-center bg-black text-white">
+        Cargando…
+      </section>
+    );
+  }
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Fondo + oscurecedores para máximo contraste */}
+      {/* Fondo */}
       <div className="absolute inset-0">
         <img
           src={bg}
@@ -66,24 +129,34 @@ const HeroSection = () => {
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-14">
           <a href="#menu">
-            <Button variant="hero" size="xl">Ver Carta</Button>
+            <Button variant="hero" size="xl">
+              Ver Carta
+            </Button>
           </a>
         </div>
 
-        {/* Tarjetas de info */}
+        {/* Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-[#002E45]/70 backdrop-blur-md rounded-lg p-6 border border-white/10 shadow-xl">
             <MapPin className="w-6 h-6 text-white mx-auto mb-3 opacity-90" />
             <p className="text-sm font-semibold text-white">Ubicación</p>
             <p className="text-xs text-white/90">{dir}</p>
           </div>
+
           <div className="bg-[#002E45]/70 backdrop-blur-md rounded-lg p-6 border border-white/10 shadow-xl">
             <Clock className="w-6 h-6 text-white mx-auto mb-3 opacity-90" />
-            <p className="text-sm font-semibold text-white text-center">Horarios</p>
+            <p className="text-sm font-semibold text-white text-center">
+              Horarios
+            </p>
             <div className="mt-2 space-y-1">
               {lines.length > 0 ? (
                 lines.map((l, i) => (
-                  <p key={i} className="text-xs text-white/90 text-center">{l}</p>
+                  <p
+                    key={i}
+                    className="text-xs text-white/90 text-center"
+                  >
+                    {l}
+                  </p>
                 ))
               ) : (
                 <p className="text-xs text-white/80 text-center">—</p>
