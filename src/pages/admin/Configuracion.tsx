@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -25,13 +25,6 @@ type Config = {
   movil_bg?: string | null;
 };
 
-const fileToBase64 = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 
 export default function AdminConfiguracion() {
   const [conf, setConf] = useState<Config | null>(null);
@@ -155,46 +148,57 @@ export default function AdminConfiguracion() {
   /* ======================================================
    * Subida de imágenes (logo / fondo)
    * ====================================================== */
-  const upFile = async (
-    file: File,
-    kind: 'logo' | 'hero' | 'movil'
-  ) => {
-    if (!cafeteriaId) return;
-
-    if (!isAdmin) {
-      toast({
-        title: 'Acceso restringido',
-        description: 'Solo administradores pueden cambiar imágenes',
-        variant: 'destructive',
-      });
-      return;
-    }
+  const upFile = async (file: File, kind: 'logo' | 'hero' | 'movil') => {
+    if (!cafeteriaId || !isAdmin) return;
 
     try {
-      const base64 = await fileToBase64(file);
+      const ext = file.name.split('.').pop() || 'jpg';
+
+      const filename =
+        kind === 'logo'
+          ? `logo.${ext}`
+          : kind === 'hero'
+          ? `hero.${ext}`
+          : `movil.${ext}`;
+
+      const path = `branding/${filename}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('branding')
+        .upload(path, file, {
+          upsert: true,
+          contentType: file.type,
+          cacheControl: '0',
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('branding')
+        .getPublicUrl(path);
+
+      if (!data?.publicUrl) throw new Error('No public URL');
 
       const patch =
         kind === 'logo'
-          ? { logo_url: base64 }
+          ? { logo_url: data.publicUrl }
           : kind === 'hero'
-          ? { hero_bg_url: base64 }
-          : { movil_bg: base64 };
+          ? { hero_bg_url: data.publicUrl }
+          : { movil_bg: data.publicUrl };
 
-      const { error } = await supabase
+      // ACTUALIZA TODAS LAS CAFETERÍAS
+      await supabase
         .from('configuracion')
         .update(patch)
-
-      if (error) throw error;
+        .not('id', 'is', null);
 
       await fetchConfig();
 
-      setConf(c => (c ? { ...c, ...(patch as any) } : c));
-
-      toast({ title: 'Imagen guardada' });
-    } catch (e) {
+      toast({ title: 'Imagen actualizada' });
+    } catch (e: any) {
       toast({
         title: 'Error',
-        description: 'No se pudo guardar la imagen',
+        description: e.message,
         variant: 'destructive',
       });
     } finally {
@@ -203,6 +207,21 @@ export default function AdminConfiguracion() {
       if (fileMovil.current) fileMovil.current.value = '';
     }
   };
+
+  useEffect(() => {
+    if (!conf) return;
+
+    const imgs = [
+      conf.logo_url,
+      conf.hero_bg_url,
+      conf.movil_bg,
+    ].filter(Boolean) as string[];
+
+    imgs.forEach(src => {
+      const img = new Image();
+      img.src = src;
+    });
+  }, [conf]);
 
   /* ======================================================
    * Render (ESTILO ORIGINAL – SIN CAMBIOS)

@@ -70,6 +70,21 @@ export default function AdminLayout() {
     if (data) setConf(data as Config);
   }, []);
 
+  useEffect(() => {
+    if (!conf) return;
+
+    const imgs = [
+      conf.logo_url,
+      conf.hero_bg_url,
+      conf.movil_bg,
+    ].filter(Boolean) as string[];
+
+    imgs.forEach(src => {
+      const img = new Image();
+      img.src = src;
+    });
+  }, [conf]);
+
   // ⭐ NUEVO: solo para EMPLEADO
   const fetchCafeteriasEmpleado = useCallback(async () => {
     // 1. Modificamos la validación para incluir 'admin'
