@@ -8,10 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-
-import adminBgDesktop from '/assets/admin-bg-ordinario.png'; //Cambiar a la imagen deseada
-import adminBgMobile from '/assets/movil-bg-ordinario.png'; //Cambiar a la imagen deseada
-import logo from '/assets/logo-admin-ordinario.png'; //Cambiar al logo deseado
+import { supabase } from '@/integrations/supabase/client';
 
 const AdminLogin = () => {
   const { user, login } = useAuth(); // <- usar user
@@ -21,25 +18,45 @@ const AdminLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const [bgUrl, setBgUrl] = useState<string>(adminBgMobile);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [desktopBg, setDesktopBg] = useState<string | null>(null);
+  const [mobileBg, setMobileBg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadConfig = async () => {
+      const { data, error } = await supabase
+        .from('configuracion')
+        .select('logo_url, hero_bg_url, movil_bg')
+        .limit(1)
+        .single();
+
+      if (!error && data) {
+        setLogoUrl(data.logo_url);
+        setDesktopBg(data.hero_bg_url);
+        setMobileBg(data.movil_bg);
+      }
+    };
+
+    loadConfig();
+  }, []);
+
+  const [bgUrl, setBgUrl] = useState<string>(mobileBg);
   const [minH, setMinH] = useState<string>('100svh');
 
   useEffect(() => {
+    if (!desktopBg && !mobileBg) return;
+
     const mq = window.matchMedia('(min-width: 1024px)');
-    const applyBg = () => setBgUrl(mq.matches ? adminBgDesktop : adminBgMobile);
+
+    const applyBg = () =>
+      setBgUrl(mq.matches ? desktopBg ?? '' : mobileBg ?? '');
+
     applyBg();
-    if (mq.addEventListener) {
-      mq.addEventListener('change', applyBg);
-      return () => mq.removeEventListener('change', applyBg);
-    } else {
-      // @ts-ignore
-      mq.addListener(applyBg);
-      return () => {
-        // @ts-ignore
-        mq.removeListener(applyBg);
-      };
-    }
-  }, []);
+
+    mq.addEventListener('change', applyBg);
+
+    return () => mq.removeEventListener('change', applyBg);
+  }, [desktopBg, mobileBg]);
 
   useEffect(() => {
     const setVh = () => {
@@ -104,7 +121,14 @@ const AdminLogin = () => {
                 <Card className="w-full dashboard-card bg-white/10 backdrop-blur-md border-white/10">
                   <CardHeader className="text-center space-y-3">
                     <div className="mx-auto bg-white rounded-full p-1 shadow-md ring-2 ring-[hsl(24_100%_50%/_0.6)] w-max">
-                      <img src={logo} alt="Logo" className="h-16 w-16 sm:h-20 sm:w-20 rounded-full object-contain bg-white" draggable={false} />
+                      {logoUrl && (
+                        <img
+                          src={logoUrl}
+                          alt="Logo"
+                          className="h-16 w-16 sm:h-20 sm:w-20 rounded-full object-contain bg-white"
+                          draggable={false}
+                        />
+                      )}
                     </div>
                     <CardTitle className="text-2xl font-aventura tracking-wide">Panel Administrativo</CardTitle>
                     <CardDescription className="card-subtitle text-white/85">Ingresa tus credenciales para acceder</CardDescription>
